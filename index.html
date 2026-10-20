@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#171B1E"><title>Hangdog Logger</title><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet"><style>
+:root{--bg:#E4E8E7;--card:#F6F8F7;--ink:#171B1E;--mute:#5B656A;--line:#C9D0D0;--acc:#2457F5;--accfg:#fff;--flash:#F3B800;color-scheme:light;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14181B;--card:#1E2428;--ink:#EEF1F0;--mute:#9AA4A9;--line:#2E373C;--acc:#7B97FF;--accfg:#10141A;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#14181B;--card:#1E2428;--ink:#EEF1F0;--mute:#9AA4A9;--line:#2E373C;--acc:#7B97FF;--accfg:#10141A;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 Barlow,system-ui,-apple-system,"Segoe UI",sans-serif;padding-bottom:84px}
+main{max-width:560px;margin:0 auto;padding:16px}
+h1,h2,.num{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;letter-spacing:.01em}
+h1{font-size:34px;margin:4px 0 14px;line-height:1}
+h2{font-size:24px;margin:20px 0 8px}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px 12px;min-height:44px}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+button.pri{background:var(--acc);color:var(--accfg);border-color:transparent;font-weight:600}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sp{flex:1}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
+.seg button{border:0;border-radius:0;background:none;flex:1}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg);font-weight:600}
+.rt{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0}
+.rt.sent{border-left:6px solid var(--acc)}
+.rt.fl{border-left:6px solid var(--flash)}
+.rt.pick{outline:3px solid var(--acc)}
+.top{display:flex;gap:12px;align-items:center}
+.chip{min-width:56px;height:56px;border-radius:50%;display:grid;place-items:center;font-size:26px;border:2px solid rgba(0,0,0,.18)}
+.mid{flex:1;min-width:0}.mid b{display:block;font-size:19px}
+small,.mute{color:var(--mute);font-size:14px}
+.badge{font-weight:600;font-size:14px}
+.acts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
+.acts button[data-t="top"]{border-color:var(--acc)}
+.acts button[data-t="flash"]{border-color:var(--flash)}
+.mini{display:flex;flex-wrap:wrap;gap:14px;margin-top:6px}
+.mini button{border:0;background:none;padding:6px 0;min-height:36px;color:var(--mute);text-decoration:underline;font-size:14px}
+.form{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0}
+label{display:block;font-weight:600;margin:10px 0 4px}
+select,input[type=text],textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);min-height:44px}
+.sw{display:flex;gap:8px;flex-wrap:wrap}
+.sw button{width:44px;height:44px;border-radius:50%;padding:0;border:2px solid rgba(0,0,0,.2)}
+.sw button[aria-pressed="true"]{outline:3px solid var(--ink);outline-offset:2px}
+.hero{display:flex;gap:10px}
+.stat{flex:1;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+.stat .num{font-size:44px;line-height:1}
+.bars{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+.br{display:flex;align-items:center;gap:10px;margin:6px 0}
+.br .g{width:48px;font-weight:600}
+.trk{flex:1;height:22px;background:var(--bg);border-radius:6px;overflow:hidden;display:flex}
+.trk i{display:block;height:100%}
+.wk{display:flex;align-items:flex-end;gap:6px;height:90px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 12px 8px}
+.wk div{flex:1;background:var(--acc);border-radius:4px 4px 0 0;min-height:3px}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom,0px)}
+nav button{flex:1;border:0;border-radius:0;background:none;min-height:56px;font-weight:600;color:var(--mute)}
+nav button[aria-current="page"]{color:var(--ink);box-shadow:inset 0 3px 0 var(--acc)}
+.empty{padding:28px 8px;text-align:center;color:var(--mute)}
+.chk{display:flex;gap:8px;align-items:center;min-height:44px}
+.chk input{width:22px;height:22px}
+#mb{overflow:auto;max-height:62vh;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:14px}
+#map{display:block;height:auto;user-select:none;-webkit-user-select:none}
+</style></head><body><main id="app"></main><nav id="nav" aria-label="Sections"></nav><script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const GR=Array.from({length:19},(_,i)=>String(i+10));
+const gl=i=>GR[Math.min(i,GR.length-1)];
+const COL={red:['#E23D3D','#fff'],orange:['#F28A1E','#171B1E'],yellow:['#F3CB12','#171B1E'],green:['#2FA44F','#fff'],blue:['#2F6FE4','#fff'],purple:['#8A4FD6','#fff'],pink:['#EC5FA5','#171B1E'],black:['#23272A','#fff'],white:['#F4F4F2','#171B1E']};
+const RANK={attempt:1,top:2,flash:3};
+const KEY='chalklog-v1',LKEY='hangdog-logs-v1',DKEY='hangdog-draft-v1';
+/* Position markers from the gym map (x, y on a 200 x 324 plan). L02, R13 and R16 were hidden on the source map, so those are estimates. */
+const SL='L01 35.6 232.8;L02 35.2 219.8;L03 34.8 206.8;L04 35 190.6;L05 35 178.6;L06 47.8 184;L07 63.8 184;L08 77.4 166.6;L09 77.4 150;L10 64.8 129.2;L11 50 129.2;L12 41.6 124.2;L13 39.2 113.8;L14 39.2 91.8;L15 33.6 65.8;L16 27 48;L17 27 22.4;L18 41.4 31.2;L19 57.4 31.2;L20 72.6 31.2;R01 117.2 301.4;R02 126.6 301.4;R03 135.8 301.4;R04 144.8 301.4;R05 144.8 283.2;R06 144.8 265.2;R07 144.8 247.2;R08 144.8 229.2;R09 162.8 217.2;R10 163 190.2;R11 145.8 198.6;R12 125.2 182;R13 124 166;R14 125.2 149.8;R15 142.6 138.4;R16 152.2 132.4;R17 161.6 126.6;R18 137 115.8;R19 153 100.6'.split(';').map(s=>{const a=s.split(' ');return[a[0],+a[1],+a[2]]});
+const mi=p=>{const i=S.marks.findIndex(m=>m.c===p);return i<0?999:i};
+const AR='Back Wall|58.3|11.8;Short Wall|20.9|38.5;Roof|24.9|104.3;Pillar|63.6|157.6;Overhang|23.4|217.2;MoonBoard|148.6|74.2;The Nose|164.1|107.5;Hidden Wall|172.2|132.9;Hexagon|142.1|166.5;Chimney|172|202;The Slab|157.4|309.5';
+const K=1/5.35;
+const poly=(pts,st)=>`<polygon points="${pts.map(p=>(p[0]*K).toFixed(1)+','+(p[1]*K).toFixed(1)).join(' ')}" style="${st}"/>`;
+const rect=(a,b,c,d,st)=>poly([[a,b],[c,b],[c,d],[a,d]],st);
+const DK='fill:var(--mute);opacity:.55',MD='fill:var(--mute);opacity:.28',FL='fill:var(--line);opacity:.6',OL='fill:none;stroke:var(--mute);stroke-width:.5;opacity:.6';
+/* Floor plan traced from the gym map photo */
+const BACK=[rect(104,5,935,1724,OL),rect(530,5,935,358,FL),rect(458,160,530,433,OL),rect(642,358,935,435,DK),rect(116,18,432,137,MD),rect(170,62,432,137,DK),
+poly([[104,320],[116,320],[140,390],[138,395],[138,742],[282,742],[282,944],[138,944],[138,1257],[193,1257],[193,1340],[104,1340]],DK),
+poly([[138,395],[170,395],[170,690],[220,742],[138,742]],MD),rect(282,742,396,944,MD),rect(138,944,170,1257,MD),rect(193,1277,330,1340,OL),
+rect(104,1340,423,1724,FL),poly([[330,1385],[423,1385],[423,1724],[390,1724],[390,1412],[330,1412]],DK),
+poly([[898,435],[935,435],[935,1724],[872,1724],[872,1190],[898,1190]],DK),poly([[760,635],[920,500],[898,635]],DK),
+poly([[803,740],[900,785],[900,975],[803,1028],[703,975],[703,802]],DK),poly([[703,805],[822,845],[822,940],[703,972]],MD),
+rect(795,1190,872,1630,MD),rect(588,1628,870,1724,MD)].join('')+`<g text-anchor="middle" style="fill:var(--mute);font-size:5;font-weight:600;opacity:.6">${AR.split(';').map(a=>{const p=a.split('|');return `<text x="${p[1]}" y="${p[2]}">${p[0]}</text>`}).join('')}</g>`;
+const DEFM=()=>SL.map(s=>({c:s[0],x:s[1],y:s[2]}));
+/* Shared data (routes, markers, lines) comes from routes.json in the repository. Climbers' logs stay in their own browser. */
+const AKEY='hangdog-admin',CKEY='hangdog-shared-cache';
+if(location.hash==='#admin'){try{localStorage.setItem(AKEY,'1')}catch(e){}}
+let BASE={routes:[],marks:DEFM(),lines:[]},PUBJ=JSON.stringify(BASE),ready=false;
+function rd(k){try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}}
+function load(){const lg=rd(LKEY),old=rd(KEY);return{routes:[],marks:DEFM(),lines:[],logs:(lg&&lg.logs)||(old&&old.logs)||[]}}
+function save(){
+  try{localStorage.setItem(LKEY,JSON.stringify({logs:S.logs}))}catch(e){}
+  if(CAN&&ready){try{localStorage.setItem(DKEY,JSON.stringify({base:PUBJ,data:{routes:S.routes,marks:S.marks,lines:S.lines}}))}catch(e){}}
+}
+async function boot(){
+  let d=null;
+  try{const r=await fetch('routes.json',{cache:'no-cache'});if(r.ok){d=await r.json();try{localStorage.setItem(CKEY,JSON.stringify(d))}catch(e){}}}catch(e){}
+  if(!d||!Array.isArray(d.routes))d=rd(CKEY);
+  if(d&&Array.isArray(d.routes))BASE={routes:d.routes,marks:d.marks&&d.marks.length?d.marks:DEFM(),lines:d.lines||[]};
+  PUBJ=JSON.stringify(BASE);
+  let sh=JSON.parse(PUBJ);const dr=rd(DKEY);
+  if(CAN&&dr&&dr.base===PUBJ&&dr.data)sh=dr.data;
+  S.routes=sh.routes;S.marks=sh.marks;S.lines=sh.lines;ready=true;render();
+}
+let S=load(),tab='routes',retired=false,hideSent=false,newColor='red',msg='',selS=null,sel=null,z=0,lastG=8,pend=null,edit=false,selL=null,CAN=localStorage.getItem(AKEY)==='1',pmsg='',showEx=false;
+const ZS=[1,1.6,2.4,3.4];
+const app=$('app');
+function best(id){let b=0;for(const l of S.logs)if(l.r===id)b=Math.max(b,RANK[l.t]);return b}
+function tries(id){return S.logs.filter(l=>l.r===id).length}
+function firstSend(id){let t=null;for(const l of S.logs)if(l.r===id&&RANK[l.t]>1&&(t===null||l.ts<t))t=l.ts;return t}
+function chip(r){const c=COL[r.c]||COL.red;return `<div class="chip num" style="background:${c[0]};color:${c[1]}">${esc(gl(r.g))}</div>`}
+
+function card(r){
+  const b=best(r.id),n=tries(r.id),st=b===3?'Flash':b===2?'Top':n?'Tried':'';
+  return `<div class="rt ${b===3?'fl':b===2?'sent':''}${sel===r.id?' pick':''}"><div class="top">${chip(r)}<div class="mid"><b>${esc(r.p||'No position')}</b><small>${esc(r.c)} · set ${esc(r.d)}${n?` · ${n} log${n>1?'s':''}`:''}</small></div><span class="badge">${st}</span></div>
+  <div class="acts"><button data-a="log" data-id="${r.id}" data-t="attempt">Attempt</button><button data-a="log" data-id="${r.id}" data-t="top">Top</button><button data-a="log" data-id="${r.id}" data-t="flash">Flash</button></div>
+  <div class="mini">${r.p?`<button data-a="show" data-id="${r.id}">Show on map</button>`:''}<button data-a="undo" data-id="${r.id}">Undo last</button>${CAN?`<button data-a="${r.up?'down':'up'}" data-id="${r.id}">${r.up?'Taken down':'Put back up'}</button><button data-a="del" data-id="${r.id}">${pend===r.id?'Tap again to delete':'Delete'}</button>`:''}</div></div>`;
+}
+
+function viewRoutes(){
+  const list=S.routes.filter(r=>r.up!==retired&&!(hideSent&&best(r.id)>1)).sort((a,b)=>mi(a.p)-mi(b.p)||a.g-b.g);
+  let h=`<h1>Hangdog Logger</h1><div class="seg"><button data-a="view" data-v="up" aria-pressed="${!retired}">On the wall</button><button data-a="view" data-v="old" aria-pressed="${retired}">Taken down</button></div>
+  <label class="chk"><input type="checkbox" data-a="hide" ${hideSent?'checked':''}> Hide routes I’ve sent</label>`;
+  if(!list.length)h+=`<div class="empty">${S.routes.length?'No routes match this view.':CAN?'No routes yet. Open the Map tab, tap a marker such as L05, and add the routes on it.':'No routes have been added yet. Check back soon.'}</div>`;
+  return h+list.map(card).join('');
+}
+
+const DIRS={R:[1,0],L:[-1,0],D:[0,1],U:[0,-1]};
+/* Place each marker's routes as a line of dots, choosing a direction that avoids other markers and dots. */
+function layout(){
+  const placed=[],out={};
+  for(const s of S.marks){
+    const rs=S.routes.filter(r=>r.p===s.c&&r.up);
+    if(!rs.length)continue;
+    const order=s.y>290?'URLD':s.x<100?'RDUL':'LUDR';
+    let bp=null,bc=1e9;
+    for(const k of order){
+      const dx=DIRS[k][0],dy=DIRS[k][1],o=dx?8.6:5.8;
+      const pts=rs.map((r,i)=>({r,x:s.x+dx*(o+i*5.2),y:s.y+dy*(o+i*5.2)}));
+      let c=0;
+      for(const p of pts){
+        if(p.x<3||p.x>197||p.y<3||p.y>321)c+=3;
+        for(const t of S.marks)if(t!==s&&Math.hypot(p.x-t.x,p.y-t.y)<7)c++;
+        for(const q of placed)if(Math.hypot(p.x-q.x,p.y-q.y)<5)c++;
+      }
+      if(c<bc){bc=c;bp=pts}
+      if(!c)break;
+    }
+    out[s.c]=bp;placed.push(...bp);
+  }
+  return out;
+}
+function mapInner(){
+  const lay=layout();let s=BACK;
+  for(const l of S.lines){
+    const on=edit&&l.id===selL,ln=`x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}"`;
+    s+=`<g ${edit?`data-a="sell" data-id="${l.id}" style="cursor:pointer"`:''}>${edit?`<line ${ln} stroke-width="7" style="stroke:transparent"/>`:''}<line ${ln} stroke-linecap="round" style="stroke:var(${on?'--acc':'--ink'});stroke-width:${on?1.8:1.3}"/></g>`;
+  }
+  for(const t of S.marks){
+    const on=t.c===selS,has=!!lay[t.c];
+    s+=`<g data-a="sels" data-id="${t.c}" ${edit?`data-h="m:${t.c}"`:''} style="cursor:${edit?'grab':'pointer'}"><rect x="${t.x-7}" y="${t.y-5}" width="14" height="10" style="fill:transparent"/><rect x="${t.x-5}" y="${t.y-2.4}" width="10" height="4.8" rx="2.4" style="fill:var(--card);stroke:var(${on?'--acc':'--mute'});stroke-width:${on?1:.5};opacity:${has||on?1:.7}"/><text x="${t.x}" y="${t.y+1}" text-anchor="middle" font-size="3" font-weight="600" style="fill:var(--ink)">${esc(t.c)}</text></g>`;
+    for(const p of lay[t.c]||[]){
+      const r=p.r,b=best(r.id),c=COL[r.c]||COL.red;
+      s+=`<g data-a="selr" data-id="${r.id}" style="cursor:pointer"><circle cx="${p.x}" cy="${p.y}" r="2.4" fill="${c[0]}" stroke-width="${b?1:.4}" style="stroke:${b===3?'var(--flash)':b===2?'var(--acc)':'rgba(0,0,0,.35)'}"/><text x="${p.x}" y="${p.y+.9}" text-anchor="middle" font-size="2.5" font-weight="700" fill="${c[1]}">${esc(gl(r.g))}</text></g>`;
+    }
+  }
+  if(edit){const l=S.lines.find(x=>x.id===selL);if(l)s+=[['1',l.x1,l.y1],['2',l.x2,l.y2],['m',(l.x1+l.x2)/2,(l.y1+l.y2)/2]].map(q=>`<circle data-h="a:${l.id}:${q[0]}" cx="${q[1]}" cy="${q[2]}" r="3.4" style="fill:var(--acc);opacity:.85;cursor:grab"/>`).join('')}
+  return s;
+}
+function viewMap(){
+  let h=`<h1>Gym map</h1><div class="row"><small class="sp">${edit?'Drag markers and line dots to place them.':(CAN?'Tap a marker to see its routes and add new ones.':'Tap a marker to see its routes and log your climbs.')}</small><button data-a="zo" aria-label="Zoom out">−</button><button data-a="zi" aria-label="Zoom in">+</button>${CAN?`<button data-a="edit" class="${edit?'pri':''}">${edit?'Done':'Edit map'}</button>`:''}</div><div id="mb"><svg id="map" viewBox="0 0 200 324" style="width:${ZS[z]*100}%;touch-action:${edit?'none':'auto'}" role="group" aria-label="Gym floor plan">${mapInner()}</svg></div>`;
+  if(edit){
+    const hasR=S.routes.some(r=>r.p===selS);
+    h+=`<div class="form"><label for="nc">Add a position code</label><div class="row"><input type="text" id="nc" placeholder="e.g. L21" maxlength="6" style="flex:1"><button class="pri" data-a="addm">Add</button></div>
+    <div class="row" style="margin-top:12px"><button data-a="addl">Add a line</button><button data-a="dell" ${selL?'':'disabled'}>${pend==='dell'?'Tap again to delete line':'Delete selected line'}</button></div>
+    ${selS?`<div class="row" style="margin-top:12px"><button data-a="delm" ${hasR?'disabled':''}>${hasR?selS+' has routes, remove them first':pend==='delm'?'Tap again to delete '+selS:'Delete marker '+selS}</button></div>`:''}
+    <p class="mute">Tap a line to select it, then drag its dots. New markers and lines start in the middle of the map.</p></div>`;
+  }else if(selS){
+    const rs=S.routes.filter(r=>r.p===selS&&r.up);
+    h+=`<h2 id="sp">${selS}</h2>${rs.length?rs.map(card).join(''):'<div class="empty">No routes on this marker yet.</div>'}
+    ${CAN?`<div class="form"><b>Add a route to ${selS}</b><label for="ng">Grade</label><select id="ng">${GR.map((g,i)=>`<option value="${i}" ${i===lastG?'selected':''}>${g}</option>`).join('')}</select>
+    <label>Hold colour</label><div class="sw">${Object.keys(COL).map(k=>`<button data-a="col" data-c="${k}" aria-label="${k}" aria-pressed="${k===newColor}" style="background:${COL[k][0]}"></button>`).join('')}</div>
+    <div class="row" style="margin-top:12px"><button class="pri sp" data-a="saveRoute">Add route</button></div></div>`:''}`;
+  }
+  return h;
+}
+/* Weekly average grade of first sends: tops include flashes, flashes are flash-first sends only. */
+function trend(){
+  const now=Date.now(),W=7*864e5,N=12,f=Array.from({length:N},()=>[]),t=Array.from({length:N},()=>[]);
+  for(const r of S.routes){const s=firstSend(r.id);if(s===null)continue;const i=N-1-Math.floor((now-s)/W);if(i<0)continue;t[i].push(r.g);if(best(r.id)===3)f[i].push(r.g)}
+  const av=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+  return [f.map(av),t.map(av)];
+}
+function chart(){
+  const [f,t]=trend(),all=[...f,...t].filter(v=>v!==null);
+  if(!all.length)return '';
+  const lo=Math.max(0,Math.floor(Math.min(...all))-1);let hi=Math.min(GR.length-1,Math.ceil(Math.max(...all))+1);if(hi<=lo)hi=lo+1;
+  const N=12,px=i=>34+i*(274/(N-1)),py=v=>130-(v-lo)/(hi-lo)*118,step=hi-lo>8?2:1;
+  let g='';
+  for(let v=lo;v<=hi;v+=step)g+=`<line x1="34" x2="308" y1="${py(v)}" y2="${py(v)}" style="stroke:var(--line)"/><text x="28" y="${py(v)+3.5}" text-anchor="end" font-size="10" style="fill:var(--mute)">${gl(v)}</text>`;
+  const ser=(a,col)=>{let d='',pen=false;a.forEach((v,i)=>{if(v===null){pen=false;return}d+=(pen?'L':'M')+px(i).toFixed(1)+' '+py(v).toFixed(1);pen=true});return `<path d="${d}" fill="none" stroke-width="2.5" stroke-linejoin="round" style="stroke:${col}"/>`+a.map((v,i)=>v===null?'':`<circle cx="${px(i).toFixed(1)}" cy="${py(v).toFixed(1)}" r="3.5" style="fill:${col}"/>`).join('')};
+  return `<h2>Average grade over time</h2><div class="bars"><svg viewBox="0 0 320 156" style="width:100%;height:auto" role="img" aria-label="Average grade of tops and flashes per week">${g}${ser(t,'var(--acc)')}${ser(f,'var(--flash)')}<text x="34" y="150" font-size="10" style="fill:var(--mute)">12 weeks ago</text><text x="308" y="150" text-anchor="end" font-size="10" style="fill:var(--mute)">this week</text></svg><small><span style="color:var(--acc)">●</span> Tops (including flashes) &nbsp; <span style="color:var(--flash)">●</span> Flashes<br>Each route counts in the week you first sent it. Gaps mean no sends that week.</small></div>`;
+}
+function viewStats(){
+  const sent=S.routes.filter(r=>best(r.id)>1);
+  if(!S.logs.length)return `<h1>Progress</h1><div class="empty">Log a few climbs and your grade breakdown will show up here.</div>`;
+  const flashes=sent.filter(r=>best(r.id)===3).length;
+  const hard=sent.length?Math.max(...sent.map(r=>r.g)):null;
+  let h=`<h1>Progress</h1><div class="hero"><div class="stat"><div class="num">${sent.length}</div><small>routes sent</small></div><div class="stat"><div class="num">${hard===null?'–':esc(gl(hard))}</div><small>hardest send</small></div><div class="stat"><div class="num">${flashes}</div><small>flashes</small></div></div>`;
+  const by={};
+  for(const r of S.routes){const b=best(r.id);if(!b)continue;const o=by[r.g]||(by[r.g]={f:0,t:0,a:0});if(b===3)o.f++;else if(b===2)o.t++;else o.a++}
+  const gs=Object.keys(by).map(Number).sort((a,b)=>b-a);
+  const mx=Math.max(1,...gs.map(g=>by[g].f+by[g].t+by[g].a));
+  h+=chart()+`<h2>Routes by grade</h2><div class="bars">${gs.map(g=>{const o=by[g],w=v=>(v/mx*100).toFixed(1)+'%';return `<div class="br"><span class="g num">${esc(gl(g))}</span><div class="trk"><i style="width:${w(o.f)};background:var(--flash)"></i><i style="width:${w(o.t)};background:var(--acc)"></i><i style="width:${w(o.a)};background:var(--line)"></i></div><span>${o.f+o.t+o.a}</span></div>`}).join('')}<small>Yellow flash · blue top · grey tried only</small></div>`;
+  const now=Date.now(),W=7*864e5,wk=Array(8).fill(0);
+  for(const r of sent){const t=firstSend(r.id);if(t===null)continue;const i=Math.floor((now-t)/W);if(i>=0&&i<8)wk[7-i]++}
+  const wm=Math.max(1,...wk);
+  h+=`<h2>New sends, last 8 weeks</h2><div class="wk" role="img" aria-label="New sends per week: ${wk.join(', ')}">${wk.map(v=>`<div style="height:${Math.max(4,v/wm*100)}%" title="${v}"></div>`).join('')}</div><small>Oldest week on the left. Each route counts once, in the week you first sent it.</small>`;
+  return h;
+}
+
+function viewMore(){
+  return `<h1>Settings</h1><h2>Back up your logs</h2><p class="mute">Your logged climbs live only in this browser. Copy them somewhere safe, or paste a backup to restore them.</p>
+  <textarea id="bk" rows="5" aria-label="Backup data"></textarea>
+  <div class="row" style="margin-top:8px"><button data-a="export">Show backup</button><button data-a="import">Restore from pasted backup</button></div>
+  <p class="mute" role="status">${esc(msg)}</p>
+  ${CAN?`<h2>Editing</h2><p class="mute">Editing is on for this device. Edits only change your own screen until you copy routes.json into GitHub.</p><button data-a="noadm">Turn off editing on this device</button>`:''}
+  <h2>Clear my logs</h2><button data-a="reset">${pend==='reset'?'Tap again to delete my logs':'Delete all my logged climbs'}</button>`;
+}
+const dirty=()=>CAN&&JSON.stringify({routes:S.routes,marks:S.marks,lines:S.lines})!==PUBJ;
+const exportText=()=>JSON.stringify({routes:S.routes,marks:S.marks,lines:S.lines},null,1);
+function banner(){
+  return dirty()?`<div class="form"><b>Changes not on the live site yet</b><p class="mute" style="margin:4px 0 8px">Copy routes.json, then paste it over the file in GitHub and commit. ${esc(pmsg)}</p>${showEx?`<textarea id="ex" readonly rows="6" aria-label="routes.json">${esc(exportText())}</textarea>`:''}<div class="row" style="margin-top:8px"><button class="pri sp" data-a="exp">Copy routes.json</button><button data-a="disc">${pend==='disc'?'Tap again to discard':'Discard changes'}</button></div></div>`:'';
+}
+function render(){
+  const mb=$('mb'),sp=mb?[mb.scrollLeft,mb.scrollTop]:null;
+  $('nav').innerHTML=[['routes','Routes'],['map','Map'],['stats','Progress'],['more','Settings']].map(x=>`<button data-tab="${x[0]}" aria-current="${x[0]===tab?'page':'false'}">${x[1]}</button>`).join('');
+  app.innerHTML=!ready?'<div class="empty">Loading routes…</div>':banner()+(tab==='routes'?viewRoutes():tab==='map'?viewMap():tab==='stats'?viewStats():viewMore());
+  const m=$('mb');if(m&&sp){m.scrollLeft=sp[0];m.scrollTop=sp[1]}
+}
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-tab],[data-a]');if(!t)return;
+  if(t.dataset.tab){tab=t.dataset.tab;msg='';render();window.scrollTo(0,0);return}
+  const a=t.dataset.a,id=t.dataset.id;
+  if(pend&&pend!==id&&pend!==a)pend=null;
+  if(['saveRoute','down','up','del','edit','sell','addm','addl','dell','delm','exp','disc'].includes(a)&&!CAN)return;
+  if(a==='view')retired=t.dataset.v==='old';
+  else if(a==='col')newColor=t.dataset.c;
+  else if(a==='sels'){selS=id;sel=null}
+  else if(a==='selr'){sel=id;const r=S.routes.find(x=>x.id===id);if(r)selS=r.p}
+  else if(a==='show'){const r=S.routes.find(x=>x.id===id);if(r){sel=id;selS=r.p;tab='map'}}
+  else if(a==='zi')z=Math.min(ZS.length-1,z+1);
+  else if(a==='zo')z=Math.max(0,z-1);
+  else if(a==='saveRoute'){const g=+$('ng').value;lastG=g;S.routes.push({id:uid(),g,c:newColor,p:selS,d:new Date().toISOString().slice(0,10),up:true});save()}
+  else if(a==='log'){S.logs.push({id:uid(),r:id,t:t.dataset.t,ts:Date.now()});save()}
+  else if(a==='undo'){for(let i=S.logs.length-1;i>=0;i--)if(S.logs[i].r===id){S.logs.splice(i,1);break}save()}
+  else if(a==='down'||a==='up'){const r=S.routes.find(x=>x.id===id);if(r)r.up=a==='up';save()}
+  else if(a==='del'){if(pend===id){S.routes=S.routes.filter(x=>x.id!==id);S.logs=S.logs.filter(l=>l.r!==id);pend=null;save()}else pend=id}
+  else if(a==='export'){$('bk').value=JSON.stringify({logs:S.logs});$('bk').select();return}
+  else if(a==='import'){try{const d=JSON.parse($('bk').value);if(!Array.isArray(d.logs))throw 0;S.logs=d.logs;save();msg='Backup restored.'}catch(x){msg='That doesn’t look like a valid backup.'}}
+  else if(a==='reset'){if(pend==='reset'){S.logs=[];pend=null;save();msg='Your logs were deleted.'}else pend='reset'}
+  else if(a==='exp'){showEx=true;pmsg='';const t=exportText();if(navigator.clipboard)navigator.clipboard.writeText(t).then(()=>{pmsg='Copied to your clipboard.';render()},()=>{pmsg='Select the text below and copy it.';render()});else pmsg='Select the text below and copy it.'}
+  else if(a==='noadm'){try{localStorage.removeItem(AKEY)}catch(e){}CAN=false;edit=false}
+  else if(a==='disc'){if(pend==='disc'){const b=JSON.parse(PUBJ);S.routes=b.routes;S.marks=b.marks;S.lines=b.lines;selS=null;selL=null;edit=false;pend=null;pmsg='';save()}else pend='disc'}
+  else if(a==='edit'){edit=!edit;selL=null}
+  else if(a==='sell'){selL=id}
+  else if(a==='addm'){const c=$('nc').value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);if(c&&!S.marks.some(m=>m.c===c)){S.marks.push({c,x:100,y:162});selS=c;save()}}
+  else if(a==='addl'){const l={id:uid(),x1:70,y1:162,x2:130,y2:162};S.lines.push(l);selL=l.id;save()}
+  else if(a==='dell'){if(pend==='dell'){S.lines=S.lines.filter(l=>l.id!==selL);selL=null;pend=null;save()}else pend='dell'}
+  else if(a==='delm'){if(!S.routes.some(r=>r.p===selS)){if(pend==='delm'){S.marks=S.marks.filter(m=>m.c!==selS);selS=null;pend=null;save()}else pend='delm'}}
+  else return;
+  render();
+  if(a==='sels'||a==='selr'||a==='show'){const p=$('sp');if(p)p.scrollIntoView({block:'start'})}
+});
+document.addEventListener('change',e=>{if(e.target.dataset.a==='hide'){hideSent=e.target.checked;render()}});
+let drag=null;
+const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v));
+function pt(e){const s=$('map'),p=s.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(s.getScreenCTM().inverse())}
+document.addEventListener('pointerdown',e=>{
+  if(!edit)return;const h=e.target.closest('[data-h]');if(!h)return;
+  const q=h.dataset.h.split(':'),o=q[0]==='m'?S.marks.find(m=>m.c===q[1]):S.lines.find(l=>l.id===q[1]);
+  if(!o)return;drag={k:q[0],e:q[2],o,s:{...o},p:pt(e)};if(q[0]==='m')selS=q[1];else selL=q[1];
+  $('map').setPointerCapture(e.pointerId);e.preventDefault()});
+document.addEventListener('pointermove',e=>{
+  if(!drag)return;const p=pt(e),o=drag.o,s=drag.s;
+  if(drag.k==='m'){o.x=clamp(s.x+p.x-drag.p.x,6,194);o.y=clamp(s.y+p.y-drag.p.y,4,320)}
+  else if(drag.e==='1'){o.x1=clamp(p.x,3,197);o.y1=clamp(p.y,3,321)}
+  else if(drag.e==='2'){o.x2=clamp(p.x,3,197);o.y2=clamp(p.y,3,321)}
+  else{const dx=clamp(p.x-drag.p.x,3-Math.min(s.x1,s.x2),197-Math.max(s.x1,s.x2)),dy=clamp(p.y-drag.p.y,3-Math.min(s.y1,s.y2),321-Math.max(s.y1,s.y2));o.x1=s.x1+dx;o.x2=s.x2+dx;o.y1=s.y1+dy;o.y2=s.y2+dy}
+  $('map').innerHTML=mapInner()});
+const endDrag=()=>{if(drag){drag=null;save();render()}};
+document.addEventListener('pointerup',endDrag);document.addEventListener('pointercancel',endDrag);
+render();
+boot();
+</script></body></html>
