@@ -86,13 +86,17 @@ const SHP=[[R4(104,5,935,1724),'ol'],[R4(530,5,935,358),'fl'],[R4(458,160,530,43
 const DEFSH=()=>SHP.map((a,i)=>({id:'s'+i,k:a[1],pts:a[0].map(q=>[+(q[0]*K).toFixed(1),+(q[1]*K).toFixed(1)])}));
 const DEFLB=()=>AR.split(';').map((a,i)=>{const q=a.split('|');return{id:'t'+i,t:q[0],x:+q[1],y:+q[2]}});
 const SK={dk:'fill:var(--mute);opacity:.55',md:'fill:var(--mute);opacity:.28',fl:'fill:var(--line);opacity:.6',ol:'fill:none;stroke:var(--mute);stroke-width:.5;opacity:.6'};
+const SHS=()=>S.shapes.find(x=>x.id===selSh)||{};
+const LNS=()=>S.lines.find(x=>x.id===selL)||{};
+const LBS=()=>S.labels.find(x=>x.id===selLb)||{};
+const shStyle=h=>h.col?(h.k==='ol'?`fill:none;stroke:${h.col};stroke-width:.5;opacity:${h.op??.6}`:`fill:${h.col};opacity:${h.op??.6}`):(SK[h.k]||SK.dk)+(h.op!=null?`;opacity:${h.op}`:'');
 function bgSvg(){
   let s='';
   for(const h of S.shapes){
     const on=edit&&h.id===selSh;
-    s+=`<polygon ${edit?`data-a="selsh" data-id="${h.id}" `:''}points="${h.pts.map(q=>q[0]+','+q[1]).join(' ')}" style="${SK[h.k]||SK.dk}${edit?';pointer-events:all;cursor:pointer':''}${on?';stroke:var(--acc);stroke-width:1.2;opacity:1':''}"/>`;
+    s+=`<polygon ${edit?`data-a="selsh" data-id="${h.id}" `:''}points="${h.pts.map(q=>q[0]+','+q[1]).join(' ')}" style="${shStyle(h)}${edit?';pointer-events:all;cursor:pointer':''}${on?';stroke:var(--acc);stroke-width:1.2;opacity:1':''}"/>`;
   }
-  return s+`<g text-anchor="middle" style="fill:var(--mute);font-size:5;font-weight:600">`+S.labels.map(l=>{const on=edit&&l.id===selLb;return `<text ${edit?`data-a="sellb" data-id="${l.id}" data-h="t:${l.id}" `:''}x="${l.x}" y="${l.y}" style="opacity:${on?1:.6}${edit?';cursor:grab;pointer-events:all':''}${on?';fill:var(--acc)':''}">${esc(l.t)}</text>`}).join('')+'</g>';
+  return s+`<g text-anchor="middle" style="fill:var(--mute);font-size:5;font-weight:600">`+S.labels.map(l=>{const on=edit&&l.id===selLb;return `<text ${edit?`data-a="sellb" data-id="${l.id}" data-h="t:${l.id}" `:''}x="${l.x}" y="${l.y}" style="opacity:${on||l.col?1:.6}${l.col?';fill:'+l.col:''}${edit?';cursor:grab;pointer-events:all':''}${on?';stroke:var(--acc);stroke-width:.8;paint-order:stroke':''}">${esc(l.t)}</text>`}).join('')+'</g>';
 }
 function handles(){
   const h=S.shapes.find(x=>x.id===selSh);if(!h)return '';
@@ -103,9 +107,9 @@ const DEFM=()=>SL.map(s=>({c:s[0],x:s[1],y:s[2]}));
 /* Shared data (routes, markers, lines) comes from routes.json in the repository. Climbers' logs stay in their own browser. */
 const AKEY='hangdog-admin',CKEY='hangdog-shared-cache';
 if(location.hash==='#admin'){try{localStorage.setItem(AKEY,'1')}catch(e){}}
-let BASE={routes:[],marks:DEFM(),lines:[],shapes:DEFSH(),labels:DEFLB()},PUBJ=JSON.stringify(BASE),ready=false;
+let BASE={routes:[],marks:DEFM(),lines:[],shapes:DEFSH(),labels:DEFLB(),community:{url:'',key:''}},PUBJ=JSON.stringify(BASE),ready=false;
 function rd(k){try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}}
-function load(){const lg=rd(LKEY),old=rd(KEY);return{routes:[],marks:DEFM(),lines:[],shapes:DEFSH(),labels:DEFLB(),logs:(lg&&lg.logs)||(old&&old.logs)||[]}}
+function load(){const lg=rd(LKEY),old=rd(KEY);return{routes:[],marks:DEFM(),lines:[],shapes:DEFSH(),labels:DEFLB(),community:{url:'',key:''},logs:(lg&&lg.logs)||(old&&old.logs)||[]}}
 function save(){
   try{localStorage.setItem(LKEY,JSON.stringify({logs:S.logs}))}catch(e){}
   if(CAN&&ready){try{localStorage.setItem(DKEY,JSON.stringify({base:PUBJ,data:shared()}))}catch(e){}}
@@ -114,13 +118,13 @@ async function boot(){
   let d=null;
   try{const r=await fetch('routes.json',{cache:'no-cache'});if(r.ok){d=await r.json();try{localStorage.setItem(CKEY,JSON.stringify(d))}catch(e){}}}catch(e){}
   if(!d||!Array.isArray(d.routes))d=rd(CKEY);
-  if(d&&Array.isArray(d.routes))BASE={routes:d.routes,marks:d.marks&&d.marks.length?d.marks:DEFM(),lines:d.lines||[],shapes:Array.isArray(d.shapes)?d.shapes:DEFSH(),labels:Array.isArray(d.labels)?d.labels:DEFLB()};
+  if(d&&Array.isArray(d.routes))BASE={routes:d.routes,marks:d.marks&&d.marks.length?d.marks:DEFM(),lines:d.lines||[],shapes:Array.isArray(d.shapes)?d.shapes:DEFSH(),labels:Array.isArray(d.labels)?d.labels:DEFLB(),community:d.community&&typeof d.community==='object'?d.community:{url:'',key:''}};
   PUBJ=JSON.stringify(BASE);
   let sh=JSON.parse(PUBJ);const dr=rd(DKEY);
   if(CAN&&dr&&dr.base===PUBJ&&dr.data)sh=dr.data;
-  S.routes=sh.routes;S.marks=sh.marks;S.lines=sh.lines;S.shapes=sh.shapes||DEFSH();S.labels=sh.labels||DEFLB();ready=true;render();
+  S.routes=sh.routes;S.marks=sh.marks;S.lines=sh.lines;S.shapes=sh.shapes||DEFSH();S.labels=sh.labels||DEFLB();S.community=sh.community||{url:'',key:''};ready=true;render();cFlush();
 }
-let S=load(),tab='routes',retired=false,hideSent=false,newColor='red',msg='',selS=null,sel=null,z=0,lastG=8,pend=null,edit=false,selL=null,selSh=null,selLb=null,CAN=localStorage.getItem(AKEY)==='1',pmsg='',showEx=false;
+let S=load(),tab='map',retired=false,hideSent=false,newColor='red',msg='',selS=null,sel=null,z=0,lastG=8,pend=null,edit=false,selL=null,selSh=null,selLb=null,CAN=localStorage.getItem(AKEY)==='1',pmsg='',showEx=false;
 const ZS=[1,1.6,2.4,3.4];
 const app=$('app');
 function best(id){let b=0;for(const l of S.logs)if(l.r===id)b=Math.max(b,RANK[l.t]);return b}
@@ -132,17 +136,62 @@ function card(r){
   const b=best(r.id),n=tries(r.id),st=b===3?'Flash':b===2?'Top':n?'Tried':'';
   return `<div class="rt ${b===3?'fl':b===2?'sent':''}${sel===r.id?' pick':''}"><div class="top">${chip(r)}<div class="mid"><b>${esc(r.p||'No position')}</b><small>${esc(r.c)} · set ${esc(r.d)}${n?` · ${n} log${n>1?'s':''}`:''}</small></div><span class="badge">${st}</span></div>
   <div class="acts"><button data-a="log" data-id="${r.id}" data-t="attempt">Attempt</button><button data-a="log" data-id="${r.id}" data-t="top">Top</button><button data-a="log" data-id="${r.id}" data-t="flash">Flash</button></div>
-  <div class="mini">${r.p?`<button data-a="show" data-id="${r.id}">Show on map</button>`:''}<button data-a="undo" data-id="${r.id}">Undo last</button>${CAN?`<button data-a="${r.up?'down':'up'}" data-id="${r.id}">${r.up?'Taken down':'Put back up'}</button><button data-a="del" data-id="${r.id}">${pend===r.id?'Tap again to delete':'Delete'}</button>`:''}</div></div>`;
+  <div class="mini"><button data-a="undo" data-id="${r.id}">Undo last</button>${CAN?`<button data-a="${r.up?'down':'up'}" data-id="${r.id}">${r.up?'Taken down':'Put back up'}</button><button data-a="del" data-id="${r.id}">${pend===r.id?'Tap again to delete':'Delete'}</button>`:''}</div></div>`;
 }
 
-function viewRoutes(){
-  const list=S.routes.filter(r=>r.up!==retired&&!(hideSent&&best(r.id)>1)).sort((a,b)=>mi(a.p)-mi(b.p)||a.g-b.g);
-  let h=`<h1>Hangdog Logger</h1><div class="seg"><button data-a="view" data-v="up" aria-pressed="${!retired}">On the wall</button><button data-a="view" data-v="old" aria-pressed="${retired}">Taken down</button></div>
-  <label class="chk"><input type="checkbox" data-a="hide" ${hideSent?'checked':''}> Hide routes I’ve sent</label>`;
-  if(!list.length)h+=`<div class="empty">${S.routes.length?'No routes match this view.':CAN?'No routes yet. Open the Map tab, tap a marker such as L05, and add the routes on it.':'No routes have been added yet. Check back soon.'}</div>`;
-  return h+list.map(card).join('');
+/* ---- Community: opt-in shared feed and leaderboard (needs a free Supabase table, see community-setup.sql) ---- */
+const LIVE=false; /* set to true once the community database is ready */
+const MKEY='hangdog-me',OKEY='hangdog-outbox';
+let ME=rd(MKEY)||{dev:uid()+uid(),nick:'',on:false},OUT=rd(OKEY)||[],CD=null,cMsg='',cLoading=false,lbMode='month';
+function saveMe(){try{localStorage.setItem(MKEY,JSON.stringify(ME))}catch(e){}}
+saveMe();
+const cOK=()=>LIVE&&!!(S.community&&S.community.url&&S.community.key);
+const cUrl=()=>S.community.url.replace(/\/+$/,'')+'/rest/v1/ticks';
+const cHdr=()=>({apikey:S.community.key,Authorization:'Bearer '+S.community.key,'Content-Type':'application/json'});
+async function cFlush(){
+  if(!cOK()||!OUT.length)return;
+  try{
+    const r=await fetch(cUrl()+'?on_conflict=device,route',{method:'POST',headers:{...cHdr(),Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify(OUT)});
+    if(r.ok){OUT=[];try{localStorage.setItem(OKEY,'[]')}catch(e){}}
+  }catch(e){}
 }
-
+async function cLoad(){
+  if(!cOK())return;
+  cLoading=true;cMsg='';render();
+  await cFlush();
+  try{
+    const r=await fetch(cUrl()+'?select=ts,nick,device,grade,colour,marker,kind&order=ts.desc&limit=2000',{headers:cHdr()});
+    if(!r.ok)throw 0;
+    CD=await r.json();
+  }catch(e){cMsg='Couldn’t load the community feed. Check your connection and try again.'}
+  cLoading=false;render();
+}
+const ago=t=>{const m=Math.round((Date.now()-new Date(t))/6e4);return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago'};
+function lb(){
+  const now=new Date(),m0=new Date(now.getFullYear(),now.getMonth(),1).getTime(),by={};
+  for(const e of CD||[]){
+    if(lbMode==='month'&&new Date(e.ts).getTime()<m0)continue;
+    const o=by[e.device]||(by[e.device]={nick:e.nick,n:0,pts:0,hard:0,dev:e.device});
+    o.n++;o.pts+=Math.max(1,e.grade-9)*(e.kind==='flash'?1.25:1);o.hard=Math.max(o.hard,e.grade);
+  }
+  return Object.values(by).map(o=>({...o,pts:Math.round(o.pts)})).sort((a,b)=>b.pts-a.pts||b.n-a.n);
+}
+function viewCommunity(){
+  let h='<h1>Community</h1>';
+  if(!LIVE)return h+'<div class="form" style="text-align:center"><b>Coming soon</b><p class="mute" style="margin:6px 0 0">A gym leaderboard and a feed of what climbers have ticked are on the way.</p></div>';
+  if(!cOK())return h+`<div class="empty">${CAN?'The community feed isn’t set up yet. Add your database details in Settings.':'The community feed isn’t switched on at this gym yet.'}</div>`;
+  if(!ME.on||!ME.nick)h+=`<div class="form"><b>Join the community</b><p class="mute" style="margin:4px 0">Share your tops and flashes with the gym. Only your nickname, the route’s grade, colour and position are shared. Ticks you log from now on are included.</p><label for="nick">Nickname</label><input type="text" id="nick" maxlength="20" value="${esc(ME.nick)}" placeholder="e.g. Chalky"><div class="row" style="margin-top:12px"><button class="pri sp" data-a="join">Share my ticks</button></div></div>`;
+  h+=`<div class="row" style="margin-top:12px"><h2 class="sp" style="margin:0">Leaderboard</h2><div class="seg" style="min-width:200px"><button data-a="lbm" data-m="month" aria-pressed="${lbMode==='month'}">This month</button><button data-a="lbm" data-m="all" aria-pressed="${lbMode==='all'}">All time</button></div></div>`;
+  if(cMsg)h+=`<p class="mute" role="status">${esc(cMsg)}</p>`;
+  if(!CD)return h+`<div class="empty">${cLoading?'Loading…':'Nothing to show yet.'}</div>`;
+  const L=lb(),me=L.findIndex(o=>o.dev===ME.dev);
+  const row=(o,i)=>`<div class="br"><span class="g num">${i+1}</span><span class="sp"><b>${esc(o.nick)}${o.dev===ME.dev?' (you)':''}</b><br><small>${o.n} send${o.n>1?'s':''} · hardest ${o.hard}</small></span><b>${o.pts}</b></div>`;
+  h+=`<div class="bars" style="margin-top:10px">${L.length?L.slice(0,10).map(row).join('')+(me>9?'<div class="mute" style="text-align:center">…</div>'+row(L[me],me):''):'<div class="empty" style="padding:12px">No ticks yet. Be the first!</div>'}<small>Points: each send scores its grade minus 9, and flashes count 25% extra.</small></div>`;
+  h+='<h2>Recent ticks</h2>';
+  const feed=CD.slice(0,40);
+  h+=feed.length?feed.map(e=>{const c=COL[e.colour]||COL.red;return `<div class="rt"><div class="top"><div class="chip num" style="min-width:44px;width:44px;height:44px;font-size:20px;background:${c[0]};color:${c[1]}">${esc(e.grade)}</div><div class="mid"><b>${esc(e.nick)} ${e.kind==='flash'?'flashed':'topped'} a ${esc(e.grade)}</b><small>${esc(e.colour)}${e.marker?' · '+esc(e.marker):''} · ${ago(e.ts)}</small></div></div></div>`}).join(''):'<div class="empty">No ticks yet.</div>';
+  return h+'<div class="row" style="margin-top:12px"><button data-a="cref">Refresh</button></div>';
+}
 const DIRS={R:[1,0],L:[-1,0],D:[0,1],U:[0,-1]};
 /* Place each marker's routes as a line of dots, choosing a direction that avoids other markers and dots. */
 function layout(){
@@ -172,7 +221,7 @@ function mapInner(){
   const lay=layout();let s=bgSvg();
   for(const l of S.lines){
     const on=edit&&l.id===selL,ln=`x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}"`;
-    s+=`<g ${edit?`data-a="sell" data-id="${l.id}" style="cursor:pointer"`:''}>${edit?`<line ${ln} stroke-width="7" style="stroke:transparent"/>`:''}<line ${ln} stroke-linecap="round" style="stroke:var(${on?'--acc':'--ink'});stroke-width:${on?1.8:1.3}"/></g>`;
+    s+=`<g ${edit?`data-a="sell" data-id="${l.id}" style="cursor:pointer"`:''}>${edit?`<line ${ln} stroke-width="7" style="stroke:transparent"/>`:''}${on?`<line ${ln} stroke-linecap="round" style="stroke:var(--acc);stroke-width:4;opacity:.35"/>`:''}<line ${ln} stroke-linecap="round" style="stroke:${l.col||'var(--ink)'};stroke-width:1.4"/></g>`;
   }
   for(const t of S.marks){
     const on=t.c===selS,has=!!lay[t.c];
@@ -192,18 +241,21 @@ function viewMap(){
     const hasR=S.routes.some(r=>r.p===selS);
     h+=`<div class="form"><label for="nc">Add a position code</label><div class="row"><input type="text" id="nc" placeholder="e.g. L21" maxlength="6" style="flex:1"><button class="pri" data-a="addm">Add</button></div>
     <div class="row" style="margin-top:12px"><button data-a="addl">Add a line</button><button data-a="dell" ${selL?'':'disabled'}>${pend==='dell'?'Tap again to delete line':'Delete selected line'}</button></div>
+    ${selL?`<div class="row" style="margin-top:8px"><label for="lnc" style="margin:0">Line colour</label><input type="color" id="lnc" data-a="lnc" value="${LNS().col||'#171b1e'}" style="width:56px;height:44px;padding:2px"><button data-a="lnr">Use default</button></div>`:''}
     ${selS?`<div class="row" style="margin-top:12px"><button data-a="delm" ${hasR?'disabled':''}>${hasR?selS+' has routes, remove them first':pend==='delm'?'Tap again to delete '+selS:'Delete marker '+selS}</button></div>`:''}
     ${selS?`<label for="rm">Rename marker ${selS}</label><input type="text" id="rm" data-a="rnm" value="${esc(selS)}" maxlength="6">`:''}
     <h2 style="margin-top:16px">Background shapes</h2>
     <div class="row"><button data-a="adds">Add a shape</button><button data-a="dels" ${selSh?'':'disabled'}>${pend==='dels'?'Tap again to delete shape':'Delete selected shape'}</button></div>
     ${selSh?`<div class="row" style="margin-top:8px"><select id="shk" data-a="shk" style="flex:1">${[['dk','Dark wall'],['md','Wall'],['fl','Floor or room'],['ol','Outline only']].map(o=>`<option value="${o[0]}" ${(S.shapes.find(x=>x.id===selSh)||{}).k===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select><button data-a="addv">Add a corner</button><button data-a="delv">Remove a corner</button></div>`:''}
+    ${selSh?`<div class="row" style="margin-top:8px"><label for="shc" style="margin:0">Colour</label><input type="color" id="shc" data-a="shc" value="${SHS().col||'#808080'}" style="width:56px;height:44px;padding:2px"><label for="sho" style="margin:0">Strength</label><input type="range" id="sho" data-a="sho" min="10" max="100" step="5" value="${Math.round((SHS().op??.6)*100)}" style="flex:1;min-width:90px"><button data-a="shr">Use preset</button></div>`:''}
     <h2 style="margin-top:16px">Text on the map</h2>
     <div class="row"><input type="text" id="nt" placeholder="e.g. Cave" maxlength="24" style="flex:1"><button class="pri" data-a="addt">Add</button></div>
-    ${selLb?`<label for="rt">Edit selected text</label><input type="text" id="rt" data-a="rnt" value="${esc((S.labels.find(x=>x.id===selLb)||{}).t||'')}" maxlength="24"><div class="row" style="margin-top:8px"><button data-a="delt">${pend==='delt'?'Tap again to delete text':'Delete selected text'}</button></div>`:''}
+    ${selLb?`<label for="rt">Edit selected text</label><input type="text" id="rt" data-a="rnt" value="${esc((S.labels.find(x=>x.id===selLb)||{}).t||'')}" maxlength="24"><div class="row" style="margin-top:8px"><label for="lbc" style="margin:0">Text colour</label><input type="color" id="lbc" data-a="lbc" value="${LBS().col||'#5b656a'}" style="width:56px;height:44px;padding:2px"><button data-a="lbr">Use default</button></div><div class="row" style="margin-top:8px"><button data-a="delt">${pend==='delt'?'Tap again to delete text':'Delete selected text'}</button></div>`:''}
     <p class="mute">Tap a shape, line or piece of text to select it, then drag its dots (or the text itself). The ringed dot in the middle of a shape moves the whole shape. New items start in the middle of the map.</p></div>`;
   }else if(selS){
     const rs=S.routes.filter(r=>r.p===selS&&r.up);
     h+=`<h2 id="sp">${selS}</h2>${rs.length?rs.map(card).join(''):'<div class="empty">No routes on this marker yet.</div>'}
+    ${CAN&&S.routes.some(r=>r.p===selS&&!r.up)?`<h2>Taken down</h2>${S.routes.filter(r=>r.p===selS&&!r.up).map(card).join('')}`:''}
     ${CAN?`<div class="form"><b>Add a route to ${selS}</b><label for="ng">Grade</label><select id="ng">${GR.map((g,i)=>`<option value="${i}" ${i===lastG?'selected':''}>${g}</option>`).join('')}</select>
     <label>Hold colour</label><div class="sw">${Object.keys(COL).map(k=>`<button data-a="col" data-c="${k}" aria-label="${k}" aria-pressed="${k===newColor}" style="background:${COL[k][0]}"></button>`).join('')}</div>
     <div class="row" style="margin-top:12px"><button class="pri sp" data-a="saveRoute">Add route</button></div></div>`:''}`;
@@ -250,10 +302,12 @@ function viewMore(){
   <textarea id="bk" rows="5" aria-label="Backup data"></textarea>
   <div class="row" style="margin-top:8px"><button data-a="export">Show backup</button><button data-a="import">Restore from pasted backup</button></div>
   <p class="mute" role="status">${esc(msg)}</p>
+  ${LIVE?'<h2>Community</h2>':''}${cOK()?`<label for="sn">Nickname</label><input type="text" id="sn" data-a="snick" value="${esc(ME.nick)}" maxlength="20" placeholder="Choose a nickname"><label class="chk"><input type="checkbox" data-a="cshare" ${ME.on?'checked':''}> Share my tops and flashes with the gym</label>`:LIVE?'<p class="mute">Not switched on at this gym yet.</p>':''}
+  ${CAN&&LIVE?`<label for="cu">Community database URL (admin)</label><input type="text" id="cu" data-a="curl" value="${esc(S.community.url)}"><label for="ck">Community database key (admin)</label><input type="text" id="ck" data-a="ckey" value="${esc(S.community.key)}">`:''}
   ${CAN?`<h2>Editing</h2><p class="mute">Editing is on for this device. Edits only change your own screen until you copy routes.json into GitHub.</p><button data-a="noadm">Turn off editing on this device</button>`:''}
   <h2>Clear my logs</h2><button data-a="reset">${pend==='reset'?'Tap again to delete my logs':'Delete all my logged climbs'}</button>`;
 }
-const shared=()=>({routes:S.routes,marks:S.marks,lines:S.lines,shapes:S.shapes,labels:S.labels});
+const shared=()=>({routes:S.routes,marks:S.marks,lines:S.lines,shapes:S.shapes,labels:S.labels,community:S.community});
 const dirty=()=>CAN&&JSON.stringify(shared())!==PUBJ;
 const exportText=()=>JSON.stringify(shared(),null,1);
 function banner(){
@@ -261,16 +315,16 @@ function banner(){
 }
 function render(){
   const mb=$('mb'),sp=mb?[mb.scrollLeft,mb.scrollTop]:null;
-  $('nav').innerHTML=[['routes','Routes'],['map','Map'],['stats','Progress'],['more','Settings']].map(x=>`<button data-tab="${x[0]}" aria-current="${x[0]===tab?'page':'false'}">${x[1]}</button>`).join('');
-  app.innerHTML=!ready?'<div class="empty">Loading routes…</div>':banner()+(tab==='routes'?viewRoutes():tab==='map'?viewMap():tab==='stats'?viewStats():viewMore());
+  $('nav').innerHTML=[['map','Map'],['stats','Progress'],['community','Community'],['more','Settings']].map(x=>`<button data-tab="${x[0]}" aria-current="${x[0]===tab?'page':'false'}">${x[1]}</button>`).join('');
+  app.innerHTML=!ready?'<div class="empty">Loading routes…</div>':banner()+(tab==='map'?viewMap():tab==='stats'?viewStats():tab==='community'?viewCommunity():viewMore());
   const m=$('mb');if(m&&sp){m.scrollLeft=sp[0];m.scrollTop=sp[1]}
 }
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-tab],[data-a]');if(!t)return;
-  if(t.dataset.tab){tab=t.dataset.tab;msg='';render();window.scrollTo(0,0);return}
+  if(t.dataset.tab){tab=t.dataset.tab;msg='';render();window.scrollTo(0,0);if(tab==='community')cLoad();return}
   const a=t.dataset.a,id=t.dataset.id;
   if(pend&&pend!==id&&pend!==a)pend=null;
-  if(['saveRoute','down','up','del','edit','sell','addm','addl','dell','delm','exp','disc','selsh','sellb','adds','dels','addv','delv','addt','delt'].includes(a)&&!CAN)return;
+  if(['saveRoute','down','up','del','edit','sell','addm','addl','dell','delm','exp','disc','shr','lnr','lbr','selsh','sellb','adds','dels','addv','delv','addt','delt'].includes(a)&&!CAN)return;
   if(a==='view')retired=t.dataset.v==='old';
   else if(a==='col')newColor=t.dataset.c;
   else if(a==='sels'){selS=id;sel=null}
@@ -279,7 +333,14 @@ document.addEventListener('click',e=>{
   else if(a==='zi')z=Math.min(ZS.length-1,z+1);
   else if(a==='zo')z=Math.max(0,z-1);
   else if(a==='saveRoute'){const g=+$('ng').value;lastG=g;S.routes.push({id:uid(),g,c:newColor,p:selS,d:new Date().toISOString().slice(0,10),up:true});save()}
-  else if(a==='log'){S.logs.push({id:uid(),r:id,t:t.dataset.t,ts:Date.now()});save()}
+  else if(a==='log'){
+    const r0=S.routes.find(x=>x.id===id),b0=best(id),k=t.dataset.t;
+    S.logs.push({id:uid(),r:id,t:k,ts:Date.now()});save();
+    if(r0&&ME.on&&ME.nick&&cOK()&&RANK[k]>1&&b0<2){OUT.push({nick:ME.nick,device:ME.dev,route:id,grade:+GR[Math.min(r0.g,GR.length-1)],colour:r0.c,marker:r0.p||'',kind:k});try{localStorage.setItem(OKEY,JSON.stringify(OUT))}catch(e){}cFlush()}
+  }
+  else if(a==='join'){const n=$('nick').value.trim().replace(/[<>]/g,'').slice(0,20);if(n){ME.nick=n;ME.on=true;saveMe();cLoad();return}}
+  else if(a==='lbm'){lbMode=t.dataset.m}
+  else if(a==='cref'){cLoad();return}
   else if(a==='undo'){for(let i=S.logs.length-1;i>=0;i--)if(S.logs[i].r===id){S.logs.splice(i,1);break}save()}
   else if(a==='down'||a==='up'){const r=S.routes.find(x=>x.id===id);if(r)r.up=a==='up';save()}
   else if(a==='del'){if(pend===id){S.routes=S.routes.filter(x=>x.id!==id);S.logs=S.logs.filter(l=>l.r!==id);pend=null;save()}else pend=id}
@@ -288,12 +349,15 @@ document.addEventListener('click',e=>{
   else if(a==='reset'){if(pend==='reset'){S.logs=[];pend=null;save();msg='Your logs were deleted.'}else pend='reset'}
   else if(a==='exp'){showEx=true;pmsg='';const t=exportText();if(navigator.clipboard)navigator.clipboard.writeText(t).then(()=>{pmsg='Copied to your clipboard.';render()},()=>{pmsg='Select the text below and copy it.';render()});else pmsg='Select the text below and copy it.'}
   else if(a==='noadm'){try{localStorage.removeItem(AKEY)}catch(e){}CAN=false;edit=false}
-  else if(a==='disc'){if(pend==='disc'){const b=JSON.parse(PUBJ);S.routes=b.routes;S.marks=b.marks;S.lines=b.lines;S.shapes=b.shapes;S.labels=b.labels;selS=null;selL=null;selSh=null;selLb=null;edit=false;pend=null;pmsg='';save()}else pend='disc'}
+  else if(a==='disc'){if(pend==='disc'){const b=JSON.parse(PUBJ);S.routes=b.routes;S.marks=b.marks;S.lines=b.lines;S.shapes=b.shapes;S.labels=b.labels;S.community=b.community;selS=null;selL=null;selSh=null;selLb=null;edit=false;pend=null;pmsg='';save()}else pend='disc'}
   else if(a==='selsh'){selSh=id;selL=null;selLb=null}
   else if(a==='sellb'){selLb=id;selSh=null;selL=null}
   else if(a==='adds'){const h={id:uid(),k:'dk',pts:[[70,140],[130,140],[130,180],[70,180]]};S.shapes.push(h);selSh=h.id;selL=null;selLb=null;save()}
   else if(a==='dels'){if(pend==='dels'){S.shapes=S.shapes.filter(x=>x.id!==selSh);selSh=null;pend=null;save()}else pend='dels'}
   else if(a==='addv'){const h=S.shapes.find(x=>x.id===selSh);if(h){let bi=0,bl=-1;h.pts.forEach((q,i)=>{const w=h.pts[(i+1)%h.pts.length],l=Math.hypot(q[0]-w[0],q[1]-w[1]);if(l>bl){bl=l;bi=i}});const q=h.pts[bi],w=h.pts[(bi+1)%h.pts.length];h.pts.splice(bi+1,0,[+((q[0]+w[0])/2).toFixed(1),+((q[1]+w[1])/2).toFixed(1)]);save()}}
+  else if(a==='lnr'){const l=LNS();if(l.id){delete l.col;save()}}
+  else if(a==='lbr'){const l=LBS();if(l.id){delete l.col;save()}}
+  else if(a==='shr'){const h=S.shapes.find(x=>x.id===selSh);if(h){delete h.col;delete h.op;save()}}
   else if(a==='delv'){const h=S.shapes.find(x=>x.id===selSh);if(h&&h.pts.length>3){h.pts.pop();save()}}
   else if(a==='addt'){const t=$('nt').value.trim().slice(0,24);if(t){const l={id:uid(),t,x:100,y:162};S.labels.push(l);selLb=l.id;selSh=null;selL=null;save()}}
   else if(a==='delt'){if(pend==='delt'){S.labels=S.labels.filter(x=>x.id!==selLb);selLb=null;pend=null;save()}else pend='delt'}
@@ -311,8 +375,16 @@ document.addEventListener('change',e=>{
   const a=e.target.dataset.a;
   if(a==='hide'){hideSent=e.target.checked;render()}
   else if(CAN&&a==='shk'){const h=S.shapes.find(x=>x.id===selSh);if(h){h.k=e.target.value;save();render()}}
+  else if(CAN&&a==='lnc'){const l=LNS();if(l.id){l.col=e.target.value;save();render()}}
+  else if(CAN&&a==='lbc'){const l=LBS();if(l.id){l.col=e.target.value;save();render()}}
+  else if(CAN&&a==='shc'){const h=SHS();if(h.id){h.col=e.target.value;save();render()}}
+  else if(CAN&&a==='sho'){const h=SHS();if(h.id){h.op=+e.target.value/100;save();render()}}
   else if(CAN&&a==='rnt'){const l=S.labels.find(x=>x.id===selLb);if(l){l.t=e.target.value.trim().slice(0,24)||l.t;save();render()}}
   else if(CAN&&a==='rnm'){const c=e.target.value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6),m=S.marks.find(x=>x.c===selS);if(m&&c&&!S.marks.some(x=>x.c===c)){S.routes.forEach(r=>{if(r.p===selS)r.p=c});m.c=c;selS=c;save()}render()}
+  else if(a==='snick'){ME.nick=e.target.value.trim().replace(/[<>]/g,'').slice(0,20);if(!ME.nick)ME.on=false;saveMe();render()}
+  else if(a==='cshare'){ME.on=e.target.checked&&!!ME.nick;saveMe();render()}
+  else if(CAN&&a==='curl'){S.community.url=e.target.value.trim();save();render()}
+  else if(CAN&&a==='ckey'){S.community.key=e.target.value.trim();save();render()}
 });
 let drag=null;
 const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v));
