@@ -74,39 +74,53 @@ const SL='L01 35.6 232.8;L02 35.2 219.8;L03 34.8 206.8;L04 35 190.6;L05 35 178.6
 const mi=p=>{const i=S.marks.findIndex(m=>m.c===p);return i<0?999:i};
 const AR='Back Wall|58.3|11.8;Short Wall|20.9|38.5;Roof|24.9|104.3;Pillar|63.6|157.6;Overhang|23.4|217.2;MoonBoard|148.6|74.2;The Nose|164.1|107.5;Hidden Wall|172.2|132.9;Hexagon|142.1|166.5;Chimney|172|202;The Slab|157.4|309.5';
 const K=1/5.35;
-const poly=(pts,st)=>`<polygon points="${pts.map(p=>(p[0]*K).toFixed(1)+','+(p[1]*K).toFixed(1)).join(' ')}" style="${st}"/>`;
-const rect=(a,b,c,d,st)=>poly([[a,b],[c,b],[c,d],[a,d]],st);
-const DK='fill:var(--mute);opacity:.55',MD='fill:var(--mute);opacity:.28',FL='fill:var(--line);opacity:.6',OL='fill:none;stroke:var(--mute);stroke-width:.5;opacity:.6';
-/* Floor plan traced from the gym map photo */
-const BACK=[rect(104,5,935,1724,OL),rect(530,5,935,358,FL),rect(458,160,530,433,OL),rect(642,358,935,435,DK),rect(116,18,432,137,MD),rect(170,62,432,137,DK),
-poly([[104,320],[116,320],[140,390],[138,395],[138,742],[282,742],[282,944],[138,944],[138,1257],[193,1257],[193,1340],[104,1340]],DK),
-poly([[138,395],[170,395],[170,690],[220,742],[138,742]],MD),rect(282,742,396,944,MD),rect(138,944,170,1257,MD),rect(193,1277,330,1340,OL),
-rect(104,1340,423,1724,FL),poly([[330,1385],[423,1385],[423,1724],[390,1724],[390,1412],[330,1412]],DK),
-poly([[898,435],[935,435],[935,1724],[872,1724],[872,1190],[898,1190]],DK),poly([[760,635],[920,500],[898,635]],DK),
-poly([[803,740],[900,785],[900,975],[803,1028],[703,975],[703,802]],DK),poly([[703,805],[822,845],[822,940],[703,972]],MD),
-rect(795,1190,872,1630,MD),rect(588,1628,870,1724,MD)].join('')+`<g text-anchor="middle" style="fill:var(--mute);font-size:5;font-weight:600;opacity:.6">${AR.split(';').map(a=>{const p=a.split('|');return `<text x="${p[1]}" y="${p[2]}">${p[0]}</text>`}).join('')}</g>`;
+const R4=(a,b,c,d)=>[[a,b],[c,b],[c,d],[a,d]];
+/* Default floor plan traced from the gym map photo (pixel coordinates of the photo) */
+const SHP=[[R4(104,5,935,1724),'ol'],[R4(530,5,935,358),'fl'],[R4(458,160,530,433),'ol'],[R4(642,358,935,435),'dk'],[R4(116,18,432,137),'md'],[R4(170,62,432,137),'dk'],
+[[[104,320],[116,320],[140,390],[138,395],[138,742],[282,742],[282,944],[138,944],[138,1257],[193,1257],[193,1340],[104,1340]],'dk'],
+[[[138,395],[170,395],[170,690],[220,742],[138,742]],'md'],[R4(282,742,396,944),'md'],[R4(138,944,170,1257),'md'],[R4(193,1277,330,1340),'ol'],
+[R4(104,1340,423,1724),'fl'],[[[330,1385],[423,1385],[423,1724],[390,1724],[390,1412],[330,1412]],'dk'],
+[[[898,435],[935,435],[935,1724],[872,1724],[872,1190],[898,1190]],'dk'],[[[760,635],[920,500],[898,635]],'dk'],
+[[[803,740],[900,785],[900,975],[803,1028],[703,975],[703,802]],'dk'],[[[703,805],[822,845],[822,940],[703,972]],'md'],
+[R4(795,1190,872,1630),'md'],[R4(588,1628,870,1724),'md']];
+const DEFSH=()=>SHP.map((a,i)=>({id:'s'+i,k:a[1],pts:a[0].map(q=>[+(q[0]*K).toFixed(1),+(q[1]*K).toFixed(1)])}));
+const DEFLB=()=>AR.split(';').map((a,i)=>{const q=a.split('|');return{id:'t'+i,t:q[0],x:+q[1],y:+q[2]}});
+const SK={dk:'fill:var(--mute);opacity:.55',md:'fill:var(--mute);opacity:.28',fl:'fill:var(--line);opacity:.6',ol:'fill:none;stroke:var(--mute);stroke-width:.5;opacity:.6'};
+function bgSvg(){
+  let s='';
+  for(const h of S.shapes){
+    const on=edit&&h.id===selSh;
+    s+=`<polygon ${edit?`data-a="selsh" data-id="${h.id}" `:''}points="${h.pts.map(q=>q[0]+','+q[1]).join(' ')}" style="${SK[h.k]||SK.dk}${edit?';pointer-events:all;cursor:pointer':''}${on?';stroke:var(--acc);stroke-width:1.2;opacity:1':''}"/>`;
+  }
+  return s+`<g text-anchor="middle" style="fill:var(--mute);font-size:5;font-weight:600">`+S.labels.map(l=>{const on=edit&&l.id===selLb;return `<text ${edit?`data-a="sellb" data-id="${l.id}" data-h="t:${l.id}" `:''}x="${l.x}" y="${l.y}" style="opacity:${on?1:.6}${edit?';cursor:grab;pointer-events:all':''}${on?';fill:var(--acc)':''}">${esc(l.t)}</text>`}).join('')+'</g>';
+}
+function handles(){
+  const h=S.shapes.find(x=>x.id===selSh);if(!h)return '';
+  const cx=h.pts.reduce((a,q)=>a+q[0],0)/h.pts.length,cy=h.pts.reduce((a,q)=>a+q[1],0)/h.pts.length;
+  return h.pts.map((q,i)=>`<circle data-h="v:${h.id}:${i}" cx="${q[0]}" cy="${q[1]}" r="3" style="fill:var(--acc);opacity:.85;cursor:grab"/>`).join('')+`<circle data-h="v:${h.id}:m" cx="${cx}" cy="${cy}" r="3.6" style="fill:var(--card);stroke:var(--acc);stroke-width:1.2;cursor:grab"/>`;
+}
 const DEFM=()=>SL.map(s=>({c:s[0],x:s[1],y:s[2]}));
 /* Shared data (routes, markers, lines) comes from routes.json in the repository. Climbers' logs stay in their own browser. */
 const AKEY='hangdog-admin',CKEY='hangdog-shared-cache';
 if(location.hash==='#admin'){try{localStorage.setItem(AKEY,'1')}catch(e){}}
-let BASE={routes:[],marks:DEFM(),lines:[]},PUBJ=JSON.stringify(BASE),ready=false;
+let BASE={routes:[],marks:DEFM(),lines:[],shapes:DEFSH(),labels:DEFLB()},PUBJ=JSON.stringify(BASE),ready=false;
 function rd(k){try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}}
-function load(){const lg=rd(LKEY),old=rd(KEY);return{routes:[],marks:DEFM(),lines:[],logs:(lg&&lg.logs)||(old&&old.logs)||[]}}
+function load(){const lg=rd(LKEY),old=rd(KEY);return{routes:[],marks:DEFM(),lines:[],shapes:DEFSH(),labels:DEFLB(),logs:(lg&&lg.logs)||(old&&old.logs)||[]}}
 function save(){
   try{localStorage.setItem(LKEY,JSON.stringify({logs:S.logs}))}catch(e){}
-  if(CAN&&ready){try{localStorage.setItem(DKEY,JSON.stringify({base:PUBJ,data:{routes:S.routes,marks:S.marks,lines:S.lines}}))}catch(e){}}
+  if(CAN&&ready){try{localStorage.setItem(DKEY,JSON.stringify({base:PUBJ,data:shared()}))}catch(e){}}
 }
 async function boot(){
   let d=null;
   try{const r=await fetch('routes.json',{cache:'no-cache'});if(r.ok){d=await r.json();try{localStorage.setItem(CKEY,JSON.stringify(d))}catch(e){}}}catch(e){}
   if(!d||!Array.isArray(d.routes))d=rd(CKEY);
-  if(d&&Array.isArray(d.routes))BASE={routes:d.routes,marks:d.marks&&d.marks.length?d.marks:DEFM(),lines:d.lines||[]};
+  if(d&&Array.isArray(d.routes))BASE={routes:d.routes,marks:d.marks&&d.marks.length?d.marks:DEFM(),lines:d.lines||[],shapes:Array.isArray(d.shapes)?d.shapes:DEFSH(),labels:Array.isArray(d.labels)?d.labels:DEFLB()};
   PUBJ=JSON.stringify(BASE);
   let sh=JSON.parse(PUBJ);const dr=rd(DKEY);
   if(CAN&&dr&&dr.base===PUBJ&&dr.data)sh=dr.data;
-  S.routes=sh.routes;S.marks=sh.marks;S.lines=sh.lines;ready=true;render();
+  S.routes=sh.routes;S.marks=sh.marks;S.lines=sh.lines;S.shapes=sh.shapes||DEFSH();S.labels=sh.labels||DEFLB();ready=true;render();
 }
-let S=load(),tab='routes',retired=false,hideSent=false,newColor='red',msg='',selS=null,sel=null,z=0,lastG=8,pend=null,edit=false,selL=null,CAN=localStorage.getItem(AKEY)==='1',pmsg='',showEx=false;
+let S=load(),tab='routes',retired=false,hideSent=false,newColor='red',msg='',selS=null,sel=null,z=0,lastG=8,pend=null,edit=false,selL=null,selSh=null,selLb=null,CAN=localStorage.getItem(AKEY)==='1',pmsg='',showEx=false;
 const ZS=[1,1.6,2.4,3.4];
 const app=$('app');
 function best(id){let b=0;for(const l of S.logs)if(l.r===id)b=Math.max(b,RANK[l.t]);return b}
@@ -155,7 +169,7 @@ function layout(){
   return out;
 }
 function mapInner(){
-  const lay=layout();let s=BACK;
+  const lay=layout();let s=bgSvg();
   for(const l of S.lines){
     const on=edit&&l.id===selL,ln=`x1="${l.x1}" y1="${l.y1}" x2="${l.x2}" y2="${l.y2}"`;
     s+=`<g ${edit?`data-a="sell" data-id="${l.id}" style="cursor:pointer"`:''}>${edit?`<line ${ln} stroke-width="7" style="stroke:transparent"/>`:''}<line ${ln} stroke-linecap="round" style="stroke:var(${on?'--acc':'--ink'});stroke-width:${on?1.8:1.3}"/></g>`;
@@ -169,6 +183,7 @@ function mapInner(){
     }
   }
   if(edit){const l=S.lines.find(x=>x.id===selL);if(l)s+=[['1',l.x1,l.y1],['2',l.x2,l.y2],['m',(l.x1+l.x2)/2,(l.y1+l.y2)/2]].map(q=>`<circle data-h="a:${l.id}:${q[0]}" cx="${q[1]}" cy="${q[2]}" r="3.4" style="fill:var(--acc);opacity:.85;cursor:grab"/>`).join('')}
+  if(edit)s+=handles();
   return s;
 }
 function viewMap(){
@@ -178,7 +193,14 @@ function viewMap(){
     h+=`<div class="form"><label for="nc">Add a position code</label><div class="row"><input type="text" id="nc" placeholder="e.g. L21" maxlength="6" style="flex:1"><button class="pri" data-a="addm">Add</button></div>
     <div class="row" style="margin-top:12px"><button data-a="addl">Add a line</button><button data-a="dell" ${selL?'':'disabled'}>${pend==='dell'?'Tap again to delete line':'Delete selected line'}</button></div>
     ${selS?`<div class="row" style="margin-top:12px"><button data-a="delm" ${hasR?'disabled':''}>${hasR?selS+' has routes, remove them first':pend==='delm'?'Tap again to delete '+selS:'Delete marker '+selS}</button></div>`:''}
-    <p class="mute">Tap a line to select it, then drag its dots. New markers and lines start in the middle of the map.</p></div>`;
+    ${selS?`<label for="rm">Rename marker ${selS}</label><input type="text" id="rm" data-a="rnm" value="${esc(selS)}" maxlength="6">`:''}
+    <h2 style="margin-top:16px">Background shapes</h2>
+    <div class="row"><button data-a="adds">Add a shape</button><button data-a="dels" ${selSh?'':'disabled'}>${pend==='dels'?'Tap again to delete shape':'Delete selected shape'}</button></div>
+    ${selSh?`<div class="row" style="margin-top:8px"><select id="shk" data-a="shk" style="flex:1">${[['dk','Dark wall'],['md','Wall'],['fl','Floor or room'],['ol','Outline only']].map(o=>`<option value="${o[0]}" ${(S.shapes.find(x=>x.id===selSh)||{}).k===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select><button data-a="addv">Add a corner</button><button data-a="delv">Remove a corner</button></div>`:''}
+    <h2 style="margin-top:16px">Text on the map</h2>
+    <div class="row"><input type="text" id="nt" placeholder="e.g. Cave" maxlength="24" style="flex:1"><button class="pri" data-a="addt">Add</button></div>
+    ${selLb?`<label for="rt">Edit selected text</label><input type="text" id="rt" data-a="rnt" value="${esc((S.labels.find(x=>x.id===selLb)||{}).t||'')}" maxlength="24"><div class="row" style="margin-top:8px"><button data-a="delt">${pend==='delt'?'Tap again to delete text':'Delete selected text'}</button></div>`:''}
+    <p class="mute">Tap a shape, line or piece of text to select it, then drag its dots (or the text itself). The ringed dot in the middle of a shape moves the whole shape. New items start in the middle of the map.</p></div>`;
   }else if(selS){
     const rs=S.routes.filter(r=>r.p===selS&&r.up);
     h+=`<h2 id="sp">${selS}</h2>${rs.length?rs.map(card).join(''):'<div class="empty">No routes on this marker yet.</div>'}
@@ -231,8 +253,9 @@ function viewMore(){
   ${CAN?`<h2>Editing</h2><p class="mute">Editing is on for this device. Edits only change your own screen until you copy routes.json into GitHub.</p><button data-a="noadm">Turn off editing on this device</button>`:''}
   <h2>Clear my logs</h2><button data-a="reset">${pend==='reset'?'Tap again to delete my logs':'Delete all my logged climbs'}</button>`;
 }
-const dirty=()=>CAN&&JSON.stringify({routes:S.routes,marks:S.marks,lines:S.lines})!==PUBJ;
-const exportText=()=>JSON.stringify({routes:S.routes,marks:S.marks,lines:S.lines},null,1);
+const shared=()=>({routes:S.routes,marks:S.marks,lines:S.lines,shapes:S.shapes,labels:S.labels});
+const dirty=()=>CAN&&JSON.stringify(shared())!==PUBJ;
+const exportText=()=>JSON.stringify(shared(),null,1);
 function banner(){
   return dirty()?`<div class="form"><b>Changes not on the live site yet</b><p class="mute" style="margin:4px 0 8px">Copy routes.json, then paste it over the file in GitHub and commit. ${esc(pmsg)}</p>${showEx?`<textarea id="ex" readonly rows="6" aria-label="routes.json">${esc(exportText())}</textarea>`:''}<div class="row" style="margin-top:8px"><button class="pri sp" data-a="exp">Copy routes.json</button><button data-a="disc">${pend==='disc'?'Tap again to discard':'Discard changes'}</button></div></div>`:'';
 }
@@ -247,7 +270,7 @@ document.addEventListener('click',e=>{
   if(t.dataset.tab){tab=t.dataset.tab;msg='';render();window.scrollTo(0,0);return}
   const a=t.dataset.a,id=t.dataset.id;
   if(pend&&pend!==id&&pend!==a)pend=null;
-  if(['saveRoute','down','up','del','edit','sell','addm','addl','dell','delm','exp','disc'].includes(a)&&!CAN)return;
+  if(['saveRoute','down','up','del','edit','sell','addm','addl','dell','delm','exp','disc','selsh','sellb','adds','dels','addv','delv','addt','delt'].includes(a)&&!CAN)return;
   if(a==='view')retired=t.dataset.v==='old';
   else if(a==='col')newColor=t.dataset.c;
   else if(a==='sels'){selS=id;sel=null}
@@ -265,9 +288,17 @@ document.addEventListener('click',e=>{
   else if(a==='reset'){if(pend==='reset'){S.logs=[];pend=null;save();msg='Your logs were deleted.'}else pend='reset'}
   else if(a==='exp'){showEx=true;pmsg='';const t=exportText();if(navigator.clipboard)navigator.clipboard.writeText(t).then(()=>{pmsg='Copied to your clipboard.';render()},()=>{pmsg='Select the text below and copy it.';render()});else pmsg='Select the text below and copy it.'}
   else if(a==='noadm'){try{localStorage.removeItem(AKEY)}catch(e){}CAN=false;edit=false}
-  else if(a==='disc'){if(pend==='disc'){const b=JSON.parse(PUBJ);S.routes=b.routes;S.marks=b.marks;S.lines=b.lines;selS=null;selL=null;edit=false;pend=null;pmsg='';save()}else pend='disc'}
-  else if(a==='edit'){edit=!edit;selL=null}
-  else if(a==='sell'){selL=id}
+  else if(a==='disc'){if(pend==='disc'){const b=JSON.parse(PUBJ);S.routes=b.routes;S.marks=b.marks;S.lines=b.lines;S.shapes=b.shapes;S.labels=b.labels;selS=null;selL=null;selSh=null;selLb=null;edit=false;pend=null;pmsg='';save()}else pend='disc'}
+  else if(a==='selsh'){selSh=id;selL=null;selLb=null}
+  else if(a==='sellb'){selLb=id;selSh=null;selL=null}
+  else if(a==='adds'){const h={id:uid(),k:'dk',pts:[[70,140],[130,140],[130,180],[70,180]]};S.shapes.push(h);selSh=h.id;selL=null;selLb=null;save()}
+  else if(a==='dels'){if(pend==='dels'){S.shapes=S.shapes.filter(x=>x.id!==selSh);selSh=null;pend=null;save()}else pend='dels'}
+  else if(a==='addv'){const h=S.shapes.find(x=>x.id===selSh);if(h){let bi=0,bl=-1;h.pts.forEach((q,i)=>{const w=h.pts[(i+1)%h.pts.length],l=Math.hypot(q[0]-w[0],q[1]-w[1]);if(l>bl){bl=l;bi=i}});const q=h.pts[bi],w=h.pts[(bi+1)%h.pts.length];h.pts.splice(bi+1,0,[+((q[0]+w[0])/2).toFixed(1),+((q[1]+w[1])/2).toFixed(1)]);save()}}
+  else if(a==='delv'){const h=S.shapes.find(x=>x.id===selSh);if(h&&h.pts.length>3){h.pts.pop();save()}}
+  else if(a==='addt'){const t=$('nt').value.trim().slice(0,24);if(t){const l={id:uid(),t,x:100,y:162};S.labels.push(l);selLb=l.id;selSh=null;selL=null;save()}}
+  else if(a==='delt'){if(pend==='delt'){S.labels=S.labels.filter(x=>x.id!==selLb);selLb=null;pend=null;save()}else pend='delt'}
+  else if(a==='edit'){edit=!edit;selL=null;selSh=null;selLb=null}
+  else if(a==='sell'){selL=id;selSh=null;selLb=null}
   else if(a==='addm'){const c=$('nc').value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);if(c&&!S.marks.some(m=>m.c===c)){S.marks.push({c,x:100,y:162});selS=c;save()}}
   else if(a==='addl'){const l={id:uid(),x1:70,y1:162,x2:130,y2:162};S.lines.push(l);selL=l.id;save()}
   else if(a==='dell'){if(pend==='dell'){S.lines=S.lines.filter(l=>l.id!==selL);selL=null;pend=null;save()}else pend='dell'}
@@ -276,18 +307,26 @@ document.addEventListener('click',e=>{
   render();
   if(a==='sels'||a==='selr'||a==='show'){const p=$('sp');if(p)p.scrollIntoView({block:'start'})}
 });
-document.addEventListener('change',e=>{if(e.target.dataset.a==='hide'){hideSent=e.target.checked;render()}});
+document.addEventListener('change',e=>{
+  const a=e.target.dataset.a;
+  if(a==='hide'){hideSent=e.target.checked;render()}
+  else if(CAN&&a==='shk'){const h=S.shapes.find(x=>x.id===selSh);if(h){h.k=e.target.value;save();render()}}
+  else if(CAN&&a==='rnt'){const l=S.labels.find(x=>x.id===selLb);if(l){l.t=e.target.value.trim().slice(0,24)||l.t;save();render()}}
+  else if(CAN&&a==='rnm'){const c=e.target.value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6),m=S.marks.find(x=>x.c===selS);if(m&&c&&!S.marks.some(x=>x.c===c)){S.routes.forEach(r=>{if(r.p===selS)r.p=c});m.c=c;selS=c;save()}render()}
+});
 let drag=null;
 const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v));
 function pt(e){const s=$('map'),p=s.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(s.getScreenCTM().inverse())}
 document.addEventListener('pointerdown',e=>{
   if(!edit)return;const h=e.target.closest('[data-h]');if(!h)return;
-  const q=h.dataset.h.split(':'),o=q[0]==='m'?S.marks.find(m=>m.c===q[1]):S.lines.find(l=>l.id===q[1]);
-  if(!o)return;drag={k:q[0],e:q[2],o,s:{...o},p:pt(e)};if(q[0]==='m')selS=q[1];else selL=q[1];
+  const q=h.dataset.h.split(':'),k=q[0],o=k==='m'?S.marks.find(m=>m.c===q[1]):k==='a'?S.lines.find(l=>l.id===q[1]):k==='v'?S.shapes.find(x=>x.id===q[1]):S.labels.find(x=>x.id===q[1]);
+  if(!o)return;drag={k,e:q[2],o,s:JSON.parse(JSON.stringify(o)),p:pt(e)};if(k==='m')selS=q[1];else if(k==='a')selL=q[1];else if(k==='v')selSh=q[1];else selLb=q[1];
   $('map').setPointerCapture(e.pointerId);e.preventDefault()});
 document.addEventListener('pointermove',e=>{
   if(!drag)return;const p=pt(e),o=drag.o,s=drag.s;
-  if(drag.k==='m'){o.x=clamp(s.x+p.x-drag.p.x,6,194);o.y=clamp(s.y+p.y-drag.p.y,4,320)}
+  if(drag.k==='t'){o.x=clamp(s.x+p.x-drag.p.x,2,198);o.y=clamp(s.y+p.y-drag.p.y,4,322)}
+  else if(drag.k==='v'){if(drag.e==='m'){const dx=p.x-drag.p.x,dy=p.y-drag.p.y;o.pts=s.pts.map(q=>[+(q[0]+dx).toFixed(1),+(q[1]+dy).toFixed(1)])}else o.pts[+drag.e]=[+clamp(p.x,0,200).toFixed(1),+clamp(p.y,0,324).toFixed(1)]}
+  else if(drag.k==='m'){o.x=clamp(s.x+p.x-drag.p.x,6,194);o.y=clamp(s.y+p.y-drag.p.y,4,320)}
   else if(drag.e==='1'){o.x1=clamp(p.x,3,197);o.y1=clamp(p.y,3,321)}
   else if(drag.e==='2'){o.x2=clamp(p.x,3,197);o.y2=clamp(p.y,3,321)}
   else{const dx=clamp(p.x-drag.p.x,3-Math.min(s.x1,s.x2),197-Math.max(s.x1,s.x2)),dy=clamp(p.y-drag.p.y,3-Math.min(s.y1,s.y2),321-Math.max(s.y1,s.y2));o.x1=s.x1+dx;o.x2=s.x2+dx;o.y1=s.y1+dy;o.y2=s.y2+dy}
