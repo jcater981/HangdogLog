@@ -58,15 +58,22 @@ nav button[aria-current="page"]{color:var(--ink);box-shadow:inset 0 3px 0 var(--
 .empty{padding:28px 8px;text-align:center;color:var(--mute)}
 .chk{display:flex;gap:8px;align-items:center;min-height:44px}
 .chk input{width:22px;height:22px}
-#mb{overflow:auto;max-height:62vh;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:14px}
+body{touch-action:manipulation}
+#mb{touch-action:pan-x pan-y;overflow:auto;max-height:62vh;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:14px}
 #map{display:block;height:auto;user-select:none;-webkit-user-select:none}
+
+.qb{position:fixed;left:0;right:0;bottom:calc(56px + env(safe-area-inset-bottom,0px));background:var(--card);border-top:1px solid var(--line);box-shadow:0 -4px 14px rgba(0,0,0,.18);padding:10px 12px;z-index:5}
+.qb>div{max-width:560px;margin:0 auto}
+.qh{display:flex;gap:10px;align-items:center}
+.qb .acts{margin-top:8px}
+.qb .acts button{min-height:52px;font-weight:600}
 </style></head><body><main id="app"></main><nav id="nav" aria-label="Sections"></nav><script>
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
 const GR=Array.from({length:19},(_,i)=>String(i+10));
 const gl=i=>GR[Math.min(i,GR.length-1)];
-const COL={red:['#E23D3D','#fff'],orange:['#F28A1E','#171B1E'],yellow:['#F3CB12','#171B1E'],green:['#2FA44F','#fff'],blue:['#2F6FE4','#fff'],purple:['#8A4FD6','#fff'],pink:['#EC5FA5','#171B1E'],black:['#23272A','#fff'],white:['#F4F4F2','#171B1E']};
+const COL={red:['#E23D3D','#fff'],orange:['#F28A1E','#171B1E'],yellow:['#F3CB12','#171B1E'],green:['#2FA44F','#fff'],blue:['#2F6FE4','#fff'],purple:['#8A4FD6','#fff'],pink:['#EC5FA5','#171B1E'],black:['#23272A','#fff'],white:['#F4F4F2','#171B1E'],grey:['#8C9196','#171B1E'],'fluoro green':['#3DFF2B','#171B1E'],'salmon pink':['#FF8F84','#171B1E']};
 const RANK={attempt:1,top:2,flash:3};
 const KEY='chalklog-v1',LKEY='hangdog-logs-v1',DKEY='hangdog-draft-v1';
 /* Position markers from the gym map (x, y on a 200 x 324 plan). L02, R13 and R16 were hidden on the source map, so those are estimates. */
@@ -124,7 +131,7 @@ async function boot(){
   if(CAN&&dr&&dr.base===PUBJ&&dr.data)sh=dr.data;
   S.routes=sh.routes;S.marks=sh.marks;S.lines=sh.lines;S.shapes=sh.shapes||DEFSH();S.labels=sh.labels||DEFLB();S.community=sh.community||{url:'',key:''};ready=true;render();cFlush();
 }
-let S=load(),tab='map',retired=false,hideSent=false,newColor='red',msg='',selS=null,sel=null,z=0,lastG=8,pend=null,edit=false,selL=null,selSh=null,selLb=null,CAN=localStorage.getItem(AKEY)==='1',pmsg='',showEx=false;
+let S=load(),tab='map',retired=false,hideSent=false,newColor='red',msg='',selS=null,sel=null,z=2,lastG=8,pend=null,edit=false,selL=null,selSh=null,selLb=null,CAN=localStorage.getItem(AKEY)==='1',pmsg='',showEx=false;
 const ZS=[1,1.6,2.4,3.4];
 const app=$('app');
 function best(id){let b=0;for(const l of S.logs)if(l.r===id)b=Math.max(b,RANK[l.t]);return b}
@@ -193,6 +200,7 @@ function viewCommunity(){
   return h+'<div class="row" style="margin-top:12px"><button data-a="cref">Refresh</button></div>';
 }
 const DIRS={R:[1,0],L:[-1,0],D:[0,1],U:[0,-1]};
+const IS=1.7,R=2.4*IS,STEP=2*R+.4; /* route icon scale: 1 = original size */
 /* Place each marker's routes as a line of dots, choosing a direction that avoids other markers and dots. */
 function layout(){
   const placed=[],out={};
@@ -201,18 +209,19 @@ function layout(){
     if(!rs.length)continue;
     const order=s.y>290?'URLD':s.x<100?'RDUL':'LUDR';
     let bp=null,bc=1e9;
+    for(const ex of [0,3,6,9,12]){if(bc===0)break;
     for(const k of order){
-      const dx=DIRS[k][0],dy=DIRS[k][1],o=dx?8.6:5.8;
-      const pts=rs.map((r,i)=>({r,x:s.x+dx*(o+i*5.2),y:s.y+dy*(o+i*5.2)}));
+      const dx=DIRS[k][0],dy=DIRS[k][1],o=(dx?5+R+1.2:2.4+R+1)+ex;
+      const pts=rs.map((r,i)=>({r,x:s.x+dx*(o+i*STEP),y:s.y+dy*(o+i*STEP)}));
       let c=0;
       for(const p of pts){
-        if(p.x<3||p.x>197||p.y<3||p.y>321)c+=3;
-        for(const t of S.marks)if(t!==s&&Math.hypot(p.x-t.x,p.y-t.y)<7)c++;
-        for(const q of placed)if(Math.hypot(p.x-q.x,p.y-q.y)<5)c++;
+        if(p.x<R+.6||p.x>200-R-.6||p.y<R+.6||p.y>324-R-.6)c+=3;
+        for(const t of S.marks)if(t!==s&&Math.hypot(p.x-t.x,p.y-t.y)<5+R)c++;
+        for(const q of placed)if(Math.hypot(p.x-q.x,p.y-q.y)<STEP-.2)c++;
       }
       if(c<bc){bc=c;bp=pts}
       if(!c)break;
-    }
+    }}
     out[s.c]=bp;placed.push(...bp);
   }
   return out;
@@ -228,7 +237,7 @@ function mapInner(){
     s+=`<g data-a="sels" data-id="${t.c}" ${edit?`data-h="m:${t.c}"`:''} style="cursor:${edit?'grab':'pointer'}"><rect x="${t.x-7}" y="${t.y-5}" width="14" height="10" style="fill:transparent"/><rect x="${t.x-5}" y="${t.y-2.4}" width="10" height="4.8" rx="2.4" style="fill:var(--card);stroke:var(${on?'--acc':'--mute'});stroke-width:${on?1:.5};opacity:${has||on?1:.7}"/><text x="${t.x}" y="${t.y+1}" text-anchor="middle" font-size="3" font-weight="600" style="fill:var(--ink)">${esc(t.c)}</text></g>`;
     for(const p of lay[t.c]||[]){
       const r=p.r,b=best(r.id),c=COL[r.c]||COL.red;
-      s+=`<g data-a="selr" data-id="${r.id}" style="cursor:pointer"><circle cx="${p.x}" cy="${p.y}" r="2.4" fill="${c[0]}" stroke-width="${b?1:.4}" style="stroke:${b===3?'var(--flash)':b===2?'var(--acc)':'rgba(0,0,0,.35)'}"/><text x="${p.x}" y="${p.y+.9}" text-anchor="middle" font-size="2.5" font-weight="700" fill="${c[1]}">${esc(gl(r.g))}</text></g>`;
+      s+=`<g data-a="selr" data-id="${r.id}" style="cursor:pointer"><circle cx="${p.x}" cy="${p.y}" r="${R}" fill="${c[0]}" stroke-width="${b?1+IS*.2:.4+IS*.1}" style="stroke:${b===3?'var(--flash)':b===2?'var(--acc)':'rgba(0,0,0,.35)'}"/><text x="${p.x}" y="${(p.y+R*.37).toFixed(2)}" text-anchor="middle" font-size="${(R*1.04).toFixed(2)}" font-weight="700" fill="${c[1]}">${esc(gl(r.g))}</text></g>`;
     }
   }
   if(edit){const l=S.lines.find(x=>x.id===selL);if(l)s+=[['1',l.x1,l.y1],['2',l.x2,l.y2],['m',(l.x1+l.x2)/2,(l.y1+l.y2)/2]].map(q=>`<circle data-h="a:${l.id}:${q[0]}" cx="${q[1]}" cy="${q[2]}" r="3.4" style="fill:var(--acc);opacity:.85;cursor:grab"/>`).join('')}
@@ -313,21 +322,27 @@ const exportText=()=>JSON.stringify(shared(),null,1);
 function banner(){
   return dirty()?`<div class="form"><b>Changes not on the live site yet</b><p class="mute" style="margin:4px 0 8px">Copy routes.json, then paste it over the file in GitHub and commit. ${esc(pmsg)}</p>${showEx?`<textarea id="ex" readonly rows="6" aria-label="routes.json">${esc(exportText())}</textarea>`:''}<div class="row" style="margin-top:8px"><button class="pri sp" data-a="exp">Copy routes.json</button><button data-a="disc">${pend==='disc'?'Tap again to discard':'Discard changes'}</button></div></div>`:'';
 }
+function quickBar(){
+  const r=sel&&S.routes.find(x=>x.id===sel&&x.up);if(!r||edit)return '';
+  const b=best(r.id),c=COL[r.c]||COL.red;
+  return `<div style="height:150px"></div><div class="qb" role="group" aria-label="Log this route"><div class="qh"><div class="chip num" style="min-width:40px;width:40px;height:40px;font-size:20px;background:${c[0]};color:${c[1]}">${esc(gl(r.g))}</div><div class="mid"><b>${esc(r.p||'Route')} · ${esc(r.c)}</b><small>${b===3?'Flashed':b===2?'Topped':tries(r.id)?'Tried':'Not logged yet'}</small></div><button data-a="undo" data-id="${r.id}">Undo</button><button data-a="qx" aria-label="Close">✕</button></div><div class="acts"><button data-a="log" data-id="${r.id}" data-t="attempt">Attempt</button><button data-a="log" data-id="${r.id}" data-t="top">Top</button><button data-a="log" data-id="${r.id}" data-t="flash">Flash</button></div></div>`;
+}
 function render(){
   const mb=$('mb'),sp=mb?[mb.scrollLeft,mb.scrollTop]:null;
   $('nav').innerHTML=[['map','Map'],['stats','Progress'],['community','Community'],['more','Settings']].map(x=>`<button data-tab="${x[0]}" aria-current="${x[0]===tab?'page':'false'}">${x[1]}</button>`).join('');
-  app.innerHTML=!ready?'<div class="empty">Loading routes…</div>':banner()+(tab==='map'?viewMap():tab==='stats'?viewStats():tab==='community'?viewCommunity():viewMore());
+  app.innerHTML=!ready?'<div class="empty">Loading routes…</div>':banner()+(tab==='map'?viewMap():tab==='stats'?viewStats():tab==='community'?viewCommunity():viewMore())+(tab==='map'?quickBar():'');
   const m=$('mb');if(m&&sp){m.scrollLeft=sp[0];m.scrollTop=sp[1]}
 }
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-tab],[data-a]');if(!t)return;
-  if(t.dataset.tab){tab=t.dataset.tab;msg='';render();window.scrollTo(0,0);if(tab==='community')cLoad();return}
+  if(t.dataset.tab){tab=t.dataset.tab;msg='';sel=null;render();window.scrollTo(0,0);if(tab==='community')cLoad();return}
   const a=t.dataset.a,id=t.dataset.id;
   if(pend&&pend!==id&&pend!==a)pend=null;
   if(['saveRoute','down','up','del','edit','sell','addm','addl','dell','delm','exp','disc','shr','lnr','lbr','selsh','sellb','adds','dels','addv','delv','addt','delt'].includes(a)&&!CAN)return;
   if(a==='view')retired=t.dataset.v==='old';
   else if(a==='col')newColor=t.dataset.c;
   else if(a==='sels'){selS=id;sel=null}
+  else if(a==='qx'){sel=null}
   else if(a==='selr'){sel=id;const r=S.routes.find(x=>x.id===id);if(r)selS=r.p}
   else if(a==='show'){const r=S.routes.find(x=>x.id===id);if(r){sel=id;selS=r.p;tab='map'}}
   else if(a==='zi')z=Math.min(ZS.length-1,z+1);
@@ -369,7 +384,10 @@ document.addEventListener('click',e=>{
   else if(a==='delm'){if(!S.routes.some(r=>r.p===selS)){if(pend==='delm'){S.marks=S.marks.filter(m=>m.c!==selS);selS=null;pend=null;save()}else pend='delm'}}
   else return;
   render();
-  if(a==='sels'||a==='selr'||a==='show'){const p=$('sp');if(p)p.scrollIntoView({block:'start'})}
+  if(a==='sels'){
+    const m=S.marks.find(x=>x.c===id),mb=$('mb');
+    if(m&&mb){const W=mb.scrollWidth,Ht=W*324/200;mb.scrollLeft=m.x/200*W-mb.clientWidth/2;mb.scrollTop=m.y/324*Ht-mb.clientHeight/2;if(!edit)mb.scrollIntoView({block:'start'})}
+  }
 });
 document.addEventListener('change',e=>{
   const a=e.target.dataset.a;
