@@ -67,6 +67,8 @@ body{touch-action:manipulation}
 .qh{display:flex;gap:10px;align-items:center}
 .qb .acts{margin-top:8px}
 .qb .acts button{min-height:52px;font-weight:600}
+.gcol{display:flex;flex-direction:column;align-items:center;gap:3px}
+.gcol small{font-size:12px;font-weight:600}
 </style></head><body><main id="app"></main><nav id="nav" aria-label="Sections"></nav><script>
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -129,7 +131,7 @@ async function boot(){
   PUBJ=JSON.stringify(BASE);
   let sh=JSON.parse(PUBJ);const dr=rd(DKEY);
   if(CAN&&dr&&dr.base===PUBJ&&dr.data)sh=dr.data;
-  S.routes=sh.routes;S.marks=sh.marks;S.lines=sh.lines;S.shapes=sh.shapes||DEFSH();S.labels=sh.labels||DEFLB();S.community=sh.community||{url:'',key:''};ready=true;render();cFlush();
+  S.routes=sh.routes;S.marks=sh.marks;S.lines=sh.lines;S.shapes=sh.shapes||DEFSH();S.labels=sh.labels||DEFLB();S.community=sh.community||{url:'',key:''};ready=true;render();cFlush();vLoad();
 }
 let S=load(),tab='map',retired=false,hideSent=false,newColor='red',msg='',selS=null,sel=null,z=2,lastG=8,pend=null,edit=false,selL=null,selSh=null,selLb=null,CAN=localStorage.getItem(AKEY)==='1',pmsg='',showEx=false;
 const ZS=[1,1.6,2.4,3.4];
@@ -141,13 +143,13 @@ function chip(r){const c=COL[r.c]||COL.red;return `<div class="chip num" style="
 
 function card(r){
   const b=best(r.id),n=tries(r.id),st=b===3?'Flash':b===2?'Top':n?'Tried':'';
-  return `<div class="rt ${b===3?'fl':b===2?'sent':''}${sel===r.id?' pick':''}"><div class="top">${chip(r)}<div class="mid"><b>${esc(r.p||'No position')}</b><small>${esc(r.c)} · set ${esc(r.d)}${n?` · ${n} log${n>1?'s':''}`:''}</small></div><span class="badge">${st}</span></div>
+  return `<div class="rt ${b===3?'fl':b===2?'sent':''}${sel===r.id?' pick':''}"><div class="top"><div class="gcol">${chip(r)}${cgTag(r)}</div><div class="mid"><b>${esc(r.p||'No position')}</b><small>${esc(r.c)} · set ${esc(r.d)}${n?` · ${n} log${n>1?'s':''}`:''}</small>${cgLine(r)}</div><span class="badge">${st}</span></div>
   <div class="acts"><button data-a="log" data-id="${r.id}" data-t="attempt">Attempt</button><button data-a="log" data-id="${r.id}" data-t="top">Top</button><button data-a="log" data-id="${r.id}" data-t="flash">Flash</button></div>
-  <div class="mini"><button data-a="undo" data-id="${r.id}">Undo last</button>${CAN?`<button data-a="${r.up?'down':'up'}" data-id="${r.id}">${r.up?'Taken down':'Put back up'}</button><button data-a="del" data-id="${r.id}">${pend===r.id?'Tap again to delete':'Delete'}</button>`:''}</div></div>`;
+  ${voteRow(r)}<div class="mini"><button data-a="undo" data-id="${r.id}">Undo last</button>${CAN?`<button data-a="${r.up?'down':'up'}" data-id="${r.id}">${r.up?'Taken down':'Put back up'}</button><button data-a="del" data-id="${r.id}">${pend===r.id?'Tap again to delete':'Delete'}</button>`:''}</div></div>`;
 }
 
 /* ---- Community: opt-in shared feed and leaderboard (needs a free Supabase table, see community-setup.sql) ---- */
-const LIVE=false; /* set to true once the community database is ready */
+const LIVE=true; /* community features; they stay hidden behind "Coming soon" until the gym's database details are added */
 const MKEY='hangdog-me',OKEY='hangdog-outbox';
 let ME=rd(MKEY)||{dev:uid()+uid(),nick:'',on:false},OUT=rd(OKEY)||[],CD=null,cMsg='',cLoading=false,lbMode='month';
 function saveMe(){try{localStorage.setItem(MKEY,JSON.stringify(ME))}catch(e){}}
@@ -155,17 +157,19 @@ saveMe();
 const cOK=()=>LIVE&&!!(S.community&&S.community.url&&S.community.key);
 const cUrl=()=>S.community.url.replace(/\/+$/,'')+'/rest/v1/ticks';
 const cHdr=()=>({apikey:S.community.key,Authorization:'Bearer '+S.community.key,'Content-Type':'application/json'});
+const OVKEY='hangdog-outvotes';
+let CV={},OUTV=rd(OVKEY)||[]; /* CV: route id -> community grade */
 async function cFlush(){
   if(!cOK()||!OUT.length)return;
   try{
-    const r=await fetch(cUrl()+'?on_conflict=device,route',{method:'POST',headers:{...cHdr(),Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify(OUT)});
+    const r=await fetch(cUrl()+'?on_conflict=device,route',{method:'POST',headers:{...cHdr(),Prefer:'resolution=ignore-duplicates,return=minimal,missing=default'},body:JSON.stringify(OUT)});
     if(r.ok){OUT=[];try{localStorage.setItem(OKEY,'[]')}catch(e){}}
   }catch(e){}
 }
 async function cLoad(){
   if(!cOK())return;
   cLoading=true;cMsg='';render();
-  await cFlush();
+  await cFlush();vLoad();
   try{
     const r=await fetch(cUrl()+'?select=ts,nick,device,grade,colour,marker,kind&order=ts.desc&limit=2000',{headers:cHdr()});
     if(!r.ok)throw 0;
@@ -173,29 +177,76 @@ async function cLoad(){
   }catch(e){cMsg='Couldn’t load the community feed. Check your connection and try again.'}
   cLoading=false;render();
 }
+const vUrl=()=>S.community.url.replace(/\/+$/,'')+'/rest/v1/grade_votes';
+async function vFlush(){
+  if(!cOK()||!OUTV.length)return;
+  try{
+    const r=await fetch(vUrl(),{method:'POST',headers:{...cHdr(),Prefer:'return=minimal'},body:JSON.stringify(OUTV)});
+    if(r.ok){OUTV=[];try{localStorage.setItem(OVKEY,'[]')}catch(e){}}
+  }catch(e){}
+}
+/* the community grade is the median of each climber's latest vote */
+async function vLoad(){
+  if(!cOK())return;
+  await vFlush();
+  try{
+    const r=await fetch(vUrl()+'?select=route,device,grade&order=ts.desc&limit=5000',{headers:cHdr()});
+    if(!r.ok)throw 0;
+    const rows=await r.json(),seen={},by={};
+    for(const v of rows){const k=v.route+'|'+v.device;if(seen[k])continue;seen[k]=1;(by[v.route]=by[v.route]||[]).push(v.grade)}
+    CV={};
+    for(const id in by){const a=by[id].sort((x,y)=>x-y),n=a.length,m=n%2?a[(n-1)/2]:(a[n/2-1]+a[n/2])/2;CV[id]={n,med:Math.round(m)}}
+  }catch(e){}
+  render();
+}
 const ago=t=>{const m=Math.round((Date.now()-new Date(t))/6e4);return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago'};
+/* Ability rating: the hardest sends count most and easier ones fade out quickly, so a pile of easy climbs can't drag a climber's level down.
+   A top counts TOPPEN grades lower than a flash (flash a 23, top a 25). Only the hardest TOPN sends are used. */
+const TOPPEN=2,TOPN=10,LAM=.7,MINSENDS=3,EW0=+GR[0];
+function ability(v){
+  if(!v.length)return null;
+  const e=v.slice().sort((a,b)=>b-a).slice(0,TOPN),m=e[0];let sw=0,sx=0;
+  for(const x of e){const w=Math.exp(-LAM*(m-x));sw+=w;sx+=w*x}
+  return sx/sw;
+}
+const effIdx=r=>r.g-(best(r.id)===3?0:TOPPEN);
+function ratingTile(sent){
+  const a=ability(sent.map(effIdx));
+  if(a===null)return '';
+  return `<div class="stat" style="margin-top:10px"><div class="num">${(a+EW0).toFixed(1)}</div><small>ability rating · your hardest sends count most, easier ones count less, and a top counts ${TOPPEN} grades lower than a flash</small></div>`;
+}
+const cgTag=r=>CV[r.id]?`<small>Comm. ${CV[r.id].med}</small>`:'';
+const cgLine=r=>CV[r.id]?`<small>Community grade ${CV[r.id].med} · ${CV[r.id].n} vote${CV[r.id].n>1?'s':''}</small>`:'';
+function voteRow(r){
+  if(!cOK()||!ME.on||!ME.nick||best(r.id)<2)return '';
+  const mine=ME.votes&&ME.votes[r.id],def=mine!=null?mine:+gl(r.g);
+  return `<div class="row" style="margin-top:8px"><small class="sp">${mine!=null?'Your grade':'What grade would you give it?'}</small><select aria-label="Your grade" style="width:84px">${GR.map(g=>`<option ${+g===def?'selected':''}>${g}</option>`).join('')}</select><button data-a="vote" data-id="${r.id}">${mine!=null?'Update':'Vote'}</button></div>`;
+}
 function lb(){
-  const now=new Date(),m0=new Date(now.getFullYear(),now.getMonth(),1).getTime(),by={};
+  const m0=Date.now()-30*864e5,by={};
   for(const e of CD||[]){
     if(lbMode==='month'&&new Date(e.ts).getTime()<m0)continue;
-    const o=by[e.device]||(by[e.device]={nick:e.nick,n:0,pts:0,hard:0,dev:e.device});
-    o.n++;o.pts+=Math.max(1,e.grade-9)*(e.kind==='flash'?1.25:1);o.hard=Math.max(o.hard,e.grade);
+    const o=by[e.device]||(by[e.device]={nick:e.nick,n:0,v:[],hard:0,dev:e.device});
+    o.n++;o.v.push(e.grade-(e.kind==='top'?TOPPEN:0));o.hard=Math.max(o.hard,e.grade);
   }
-  return Object.values(by).map(o=>({...o,pts:Math.round(o.pts)})).sort((a,b)=>b.pts-a.pts||b.n-a.n);
+  return Object.values(by).filter(o=>o.n>=MINSENDS).map(o=>({...o,rt:ability(o.v)})).sort((a,b)=>b.rt-a.rt||b.n-a.n);
 }
+let fDev=null;
 function viewCommunity(){
   let h='<h1>Community</h1>';
-  if(!LIVE)return h+'<div class="form" style="text-align:center"><b>Coming soon</b><p class="mute" style="margin:6px 0 0">A gym leaderboard and a feed of what climbers have ticked are on the way.</p></div>';
-  if(!cOK())return h+`<div class="empty">${CAN?'The community feed isn’t set up yet. Add your database details in Settings.':'The community feed isn’t switched on at this gym yet.'}</div>`;
-  if(!ME.on||!ME.nick)h+=`<div class="form"><b>Join the community</b><p class="mute" style="margin:4px 0">Share your tops and flashes with the gym. Only your nickname, the route’s grade, colour and position are shared. Ticks you log from now on are included.</p><label for="nick">Nickname</label><input type="text" id="nick" maxlength="20" value="${esc(ME.nick)}" placeholder="e.g. Chalky"><div class="row" style="margin-top:12px"><button class="pri sp" data-a="join">Share my ticks</button></div></div>`;
-  h+=`<div class="row" style="margin-top:12px"><h2 class="sp" style="margin:0">Leaderboard</h2><div class="seg" style="min-width:200px"><button data-a="lbm" data-m="month" aria-pressed="${lbMode==='month'}">This month</button><button data-a="lbm" data-m="all" aria-pressed="${lbMode==='all'}">All time</button></div></div>`;
+  const soon='<div class="form" style="text-align:center"><b>Coming soon</b><p class="mute" style="margin:6px 0 0">A gym leaderboard, a feed of what climbers have ticked and community grades are on the way.</p></div>';
+  if(!LIVE)return h+soon;
+  if(!cOK())return h+(CAN?'<div class="empty">The community isn’t set up yet. Add your database details in Settings.</div>':soon);
+  if(!ME.on||!ME.nick)h+=`<div class="form"><b>Join the community</b><p class="mute" style="margin:4px 0">Share your tops and flashes with the gym, see what others have ticked, and vote on route grades. Only your nickname, the route’s grade, colour and position, and your grade votes are shared.</p><label for="nick">Nickname</label><input type="text" id="nick" maxlength="20" value="${esc(ME.nick)}" placeholder="e.g. Chalky"><label class="chk"><input type="checkbox" id="bf" checked> Include the routes I’ve already sent</label><div class="row" style="margin-top:8px"><button class="pri sp" data-a="join">Join</button></div></div>`;
+  h+=`<div class="row" style="margin-top:12px"><h2 class="sp" style="margin:0">Leaderboard</h2><div class="seg" style="min-width:200px"><button data-a="lbm" data-m="month" aria-pressed="${lbMode==='month'}">Last 30 days</button><button data-a="lbm" data-m="all" aria-pressed="${lbMode==='all'}">All time</button></div></div>`;
   if(cMsg)h+=`<p class="mute" role="status">${esc(cMsg)}</p>`;
   if(!CD)return h+`<div class="empty">${cLoading?'Loading…':'Nothing to show yet.'}</div>`;
   const L=lb(),me=L.findIndex(o=>o.dev===ME.dev);
-  const row=(o,i)=>`<div class="br"><span class="g num">${i+1}</span><span class="sp"><b>${esc(o.nick)}${o.dev===ME.dev?' (you)':''}</b><br><small>${o.n} send${o.n>1?'s':''} · hardest ${o.hard}</small></span><b>${o.pts}</b></div>`;
-  h+=`<div class="bars" style="margin-top:10px">${L.length?L.slice(0,10).map(row).join('')+(me>9?'<div class="mute" style="text-align:center">…</div>'+row(L[me],me):''):'<div class="empty" style="padding:12px">No ticks yet. Be the first!</div>'}<small>Points: each send scores its grade minus 9, and flashes count 25% extra.</small></div>`;
+  const row=(o,i)=>`<button class="br" data-a="fdev" data-d="${esc(o.dev)}" style="width:100%;text-align:left;background:none;border:0;padding:6px 0;min-height:48px"><span class="g num">${i+1}</span><span class="sp"><b>${esc(o.nick)}${o.dev===ME.dev?' (you)':''}</b><br><small>${o.n} send${o.n>1?'s':''} · hardest ${o.hard}</small></span><b>${o.rt.toFixed(1)}</b></button>`;
+  h+=`<div class="bars" style="margin-top:10px">${L.length?L.slice(0,10).map(row).join('')+(me>9?'<div class="mute" style="text-align:center">…</div>'+row(L[me],me):''):`<div class="empty" style="padding:12px">No one has ${MINSENDS} sends in this period yet.</div>`}<small>Ranked by ability rating: the hardest sends count most, easier ones count less, and a top counts ${TOPPEN} grades lower than a flash. Climbers appear after ${MINSENDS} sends. Tap a name to see their ticks.</small></div>`;
   h+='<h2>Recent ticks</h2>';
-  const feed=CD.slice(0,40);
+  if(fDev){const f=CD.find(e=>e.device===fDev);h+=`<div class="row"><small class="sp">Showing ${esc(f?f.nick:'one climber')}’s ticks</small><button data-a="fdev" data-d="">Show everyone</button></div>`}
+  const feed=CD.filter(e=>!fDev||e.device===fDev).slice(0,40);
   h+=feed.length?feed.map(e=>{const c=COL[e.colour]||COL.red;return `<div class="rt"><div class="top"><div class="chip num" style="min-width:44px;width:44px;height:44px;font-size:20px;background:${c[0]};color:${c[1]}">${esc(e.grade)}</div><div class="mid"><b>${esc(e.nick)} ${e.kind==='flash'?'flashed':'topped'} a ${esc(e.grade)}</b><small>${esc(e.colour)}${e.marker?' · '+esc(e.marker):''} · ${ago(e.ts)}</small></div></div></div>`}).join(''):'<div class="empty">No ticks yet.</div>';
   return h+'<div class="row" style="margin-top:12px"><button data-a="cref">Refresh</button></div>';
 }
@@ -274,8 +325,8 @@ function viewMap(){
 /* Weekly average grade of first sends: tops include flashes, flashes are flash-first sends only. */
 function trend(){
   const now=Date.now(),W=7*864e5,N=12,f=Array.from({length:N},()=>[]),t=Array.from({length:N},()=>[]);
-  for(const r of S.routes){const s=firstSend(r.id);if(s===null)continue;const i=N-1-Math.floor((now-s)/W);if(i<0)continue;t[i].push(r.g);if(best(r.id)===3)f[i].push(r.g)}
-  const av=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+  for(const r of S.routes){const s=firstSend(r.id);if(s===null)continue;const i=N-1-Math.floor((now-s)/W);if(i<0)continue;t[i].push(effIdx(r));if(best(r.id)===3)f[i].push(r.g)}
+  const av=a=>a.length?ability(a):null;
   return [f.map(av),t.map(av)];
 }
 function chart(){
@@ -286,7 +337,7 @@ function chart(){
   let g='';
   for(let v=lo;v<=hi;v+=step)g+=`<line x1="34" x2="308" y1="${py(v)}" y2="${py(v)}" style="stroke:var(--line)"/><text x="28" y="${py(v)+3.5}" text-anchor="end" font-size="10" style="fill:var(--mute)">${gl(v)}</text>`;
   const ser=(a,col)=>{let d='',pen=false;a.forEach((v,i)=>{if(v===null){pen=false;return}d+=(pen?'L':'M')+px(i).toFixed(1)+' '+py(v).toFixed(1);pen=true});return `<path d="${d}" fill="none" stroke-width="2.5" stroke-linejoin="round" style="stroke:${col}"/>`+a.map((v,i)=>v===null?'':`<circle cx="${px(i).toFixed(1)}" cy="${py(v).toFixed(1)}" r="3.5" style="fill:${col}"/>`).join('')};
-  return `<h2>Average grade over time</h2><div class="bars"><svg viewBox="0 0 320 156" style="width:100%;height:auto" role="img" aria-label="Average grade of tops and flashes per week">${g}${ser(t,'var(--acc)')}${ser(f,'var(--flash)')}<text x="34" y="150" font-size="10" style="fill:var(--mute)">12 weeks ago</text><text x="308" y="150" text-anchor="end" font-size="10" style="fill:var(--mute)">this week</text></svg><small><span style="color:var(--acc)">●</span> Tops (including flashes) &nbsp; <span style="color:var(--flash)">●</span> Flashes<br>Each route counts in the week you first sent it. Gaps mean no sends that week.</small></div>`;
+  return `<h2>Ability rating over time</h2><div class="bars"><svg viewBox="0 0 320 156" style="width:100%;height:auto" role="img" aria-label="Ability rating per week">${g}${ser(t,'var(--acc)')}${ser(f,'var(--flash)')}<text x="34" y="150" font-size="10" style="fill:var(--mute)">12 weeks ago</text><text x="308" y="150" text-anchor="end" font-size="10" style="fill:var(--mute)">this week</text></svg><small><span style="color:var(--acc)">●</span> All sends (tops count ${TOPPEN} grades lower) &nbsp; <span style="color:var(--flash)">●</span> Flashes only<br>Each route counts in the week you first sent it, and easier sends count less, so a few hard sends lift the line. Gaps mean no sends that week.</small></div>`;
 }
 function viewStats(){
   const sent=S.routes.filter(r=>best(r.id)>1);
@@ -294,6 +345,7 @@ function viewStats(){
   const flashes=sent.filter(r=>best(r.id)===3).length;
   const hard=sent.length?Math.max(...sent.map(r=>r.g)):null;
   let h=`<h1>Progress</h1><div class="hero"><div class="stat"><div class="num">${sent.length}</div><small>routes sent</small></div><div class="stat"><div class="num">${hard===null?'–':esc(gl(hard))}</div><small>hardest send</small></div><div class="stat"><div class="num">${flashes}</div><small>flashes</small></div></div>`;
+  h+=ratingTile(sent);
   const by={};
   for(const r of S.routes){const b=best(r.id);if(!b)continue;const o=by[r.g]||(by[r.g]={f:0,t:0,a:0});if(b===3)o.f++;else if(b===2)o.t++;else o.a++}
   const gs=Object.keys(by).map(Number).sort((a,b)=>b-a);
@@ -324,8 +376,8 @@ function banner(){
 }
 function quickBar(){
   const r=sel&&S.routes.find(x=>x.id===sel&&x.up);if(!r||edit)return '';
-  const b=best(r.id),c=COL[r.c]||COL.red;
-  return `<div style="height:150px"></div><div class="qb" role="group" aria-label="Log this route"><div class="qh"><div class="chip num" style="min-width:40px;width:40px;height:40px;font-size:20px;background:${c[0]};color:${c[1]}">${esc(gl(r.g))}</div><div class="mid"><b>${esc(r.p||'Route')} · ${esc(r.c)}</b><small>${b===3?'Flashed':b===2?'Topped':tries(r.id)?'Tried':'Not logged yet'}</small></div><button data-a="undo" data-id="${r.id}">Undo</button><button data-a="qx" aria-label="Close">✕</button></div><div class="acts"><button data-a="log" data-id="${r.id}" data-t="attempt">Attempt</button><button data-a="log" data-id="${r.id}" data-t="top">Top</button><button data-a="log" data-id="${r.id}" data-t="flash">Flash</button></div></div>`;
+  const b=best(r.id),c=COL[r.c]||COL.red,vr=voteRow(r);
+  return `<div style="height:${vr?215:150}px"></div><div class="qb" role="group" aria-label="Log this route"><div class="qh"><div class="chip num" style="min-width:40px;width:40px;height:40px;font-size:20px;background:${c[0]};color:${c[1]}">${esc(gl(r.g))}</div><div class="mid"><b>${esc(r.p||'Route')} · ${esc(r.c)}</b><small>${b===3?'Flashed':b===2?'Topped':tries(r.id)?'Tried':'Not logged yet'}</small>${cgLine(r)}</div><button data-a="undo" data-id="${r.id}">Undo</button><button data-a="qx" aria-label="Close">✕</button></div><div class="acts"><button data-a="log" data-id="${r.id}" data-t="attempt">Attempt</button><button data-a="log" data-id="${r.id}" data-t="top">Top</button><button data-a="log" data-id="${r.id}" data-t="flash">Flash</button></div>${vr}</div>`;
 }
 function render(){
   const mb=$('mb'),sp=mb?[mb.scrollLeft,mb.scrollTop]:null;
@@ -353,7 +405,11 @@ document.addEventListener('click',e=>{
     S.logs.push({id:uid(),r:id,t:k,ts:Date.now()});save();
     if(r0&&ME.on&&ME.nick&&cOK()&&RANK[k]>1&&b0<2){OUT.push({nick:ME.nick,device:ME.dev,route:id,grade:+GR[Math.min(r0.g,GR.length-1)],colour:r0.c,marker:r0.p||'',kind:k});try{localStorage.setItem(OKEY,JSON.stringify(OUT))}catch(e){}cFlush()}
   }
-  else if(a==='join'){const n=$('nick').value.trim().replace(/[<>]/g,'').slice(0,20);if(n){ME.nick=n;ME.on=true;saveMe();cLoad();return}}
+  else if(a==='join'){const n=$('nick').value.trim().replace(/[<>]/g,'').slice(0,20);if(n){
+    if($('bf')&&$('bf').checked){for(const r of S.routes){const b=best(r.id);if(b>=2)OUT.push({nick:n,device:ME.dev,route:r.id,grade:+gl(r.g),colour:r.c,marker:r.p||'',kind:b===3?'flash':'top',ts:new Date(firstSend(r.id)||Date.now()).toISOString()})}try{localStorage.setItem(OKEY,JSON.stringify(OUT))}catch(e){}}
+    ME.nick=n;ME.on=true;saveMe();cLoad();return}}
+  else if(a==='vote'){const se=t.parentElement.querySelector('select'),g=se?+se.value:0;if(g&&cOK()){ME.votes=ME.votes||{};ME.votes[id]=g;saveMe();OUTV.push({route:id,device:ME.dev,nick:ME.nick,grade:g});try{localStorage.setItem(OVKEY,JSON.stringify(OUTV))}catch(e){}vFlush().then(vLoad)}}
+  else if(a==='fdev'){fDev=t.dataset.d||null}
   else if(a==='lbm'){lbMode=t.dataset.m}
   else if(a==='cref'){cLoad();return}
   else if(a==='undo'){for(let i=S.logs.length-1;i>=0;i--)if(S.logs[i].r===id){S.logs.splice(i,1);break}save()}
