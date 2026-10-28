@@ -203,6 +203,7 @@ const DIRS={R:[1,0],L:[-1,0],D:[0,1],U:[0,-1]};
 /* Place each marker's routes as a line of dots, choosing a direction that avoids other markers and dots. */
 const DOT=3.8; /* route icon radius on the 200-wide map (1.6x the old size; the map opens at 2.4x zoom, so icons look about 3.8x as big on screen) */
 /* Each marker's routes sit in a tidy square block on the open side of the marker (away from the wall), lowest grade first. */
+const DV={N:[0,-1],E:[1,0],S:[0,1],W:[-1,0]};
 function layout(){
   const out={},placed=[],G=DOT*2+1.6;
   const clash=(x,y,pl)=>{
@@ -214,7 +215,7 @@ function layout(){
   for(const s of S.marks){
     const rs=S.routes.filter(r=>r.p===s.c&&r.up).sort((a,b)=>a.g-b.g);
     if(!rs.length)continue;
-    const n=rs.length,u=s.y>290?[0,-1]:s.x<100?[1,0]:[-1,0],v=[-u[1],u[0]],c0=Math.ceil(Math.sqrt(n)),opts=[];
+    const n=rs.length,u=DV[s.d]||(s.y>290?[0,-1]:s.x<100?[1,0]:[-1,0]),v=[-u[1],u[0]],c0=Math.ceil(Math.sqrt(n)),opts=[];
     for(const c of new Set([c0,Math.max(1,c0-1),c0+1,1,n])){
       const rows=Math.ceil(n/c);
       for(let k=0;k<=10;k++){const sh=Math.ceil(k/2)*(k%2?1:-1)*G*.5;for(let a=0;a<=8;a++)opts.push({c,rows,sh,aw:a*G*.5,cost:Math.abs(sh)+a*G*.6+(c===c0?0:6)+(c===1||c===n?14:0)})}
@@ -259,6 +260,7 @@ function viewMap(){
     ${selL?`<div class="row" style="margin-top:8px"><label for="lnc" style="margin:0">Line colour</label><input type="color" id="lnc" data-a="lnc" value="${LNS().col||'#171b1e'}" style="width:56px;height:44px;padding:2px"><button data-a="lnr">Use default</button></div>`:''}
     ${selS?`<div class="row" style="margin-top:12px"><button data-a="delm" ${hasR?'disabled':''}>${hasR?selS+' has routes, remove them first':pend==='delm'?'Tap again to delete '+selS:'Delete marker '+selS}</button></div>`:''}
     ${selS?`<label for="rm">Rename marker ${selS}</label><input type="text" id="rm" data-a="rnm" value="${esc(selS)}" maxlength="6">`:''}
+    ${selS?`<label>Which way ${selS}’s routes cluster</label><div class="seg">${[['N','N ↑'],['E','E →'],['S','S ↓'],['W','W ←'],['A','Auto']].map(o=>`<button data-a="cdir" data-d="${o[0]}" aria-pressed="${((S.marks.find(x=>x.c===selS)||{}).d||'A')===o[0]}">${o[1]}</button>`).join('')}</div><small class="mute">North is the top of the map. Auto picks the side facing the middle of the gym.</small>`:''}
     <h2 style="margin-top:16px">Background shapes</h2>
     <div class="row"><button data-a="adds">Add a shape</button><button data-a="dels" ${selSh?'':'disabled'}>${pend==='dels'?'Tap again to delete shape':'Delete selected shape'}</button></div>
     ${selSh?`<div class="row" style="margin-top:8px"><select id="shk" data-a="shk" style="flex:1">${[['dk','Dark wall'],['md','Wall'],['fl','Floor or room'],['ol','Outline only']].map(o=>`<option value="${o[0]}" ${(S.shapes.find(x=>x.id===selSh)||{}).k===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select><button data-a="addv">Add a corner</button><button data-a="delv">Remove a corner</button></div>`:''}
@@ -344,7 +346,7 @@ document.addEventListener('click',e=>{
   if(t.dataset.tab){tab=t.dataset.tab;msg='';sel=null;render();window.scrollTo(0,0);if(tab==='community')cLoad();return}
   const a=t.dataset.a,id=t.dataset.id;
   if(pend&&pend!==id&&pend!==a)pend=null;
-  if(['saveRoute','down','up','del','edit','sell','addm','addl','dell','delm','exp','disc','shr','lnr','lbr','selsh','sellb','adds','dels','addv','delv','addt','delt'].includes(a)&&!CAN)return;
+  if(['saveRoute','down','up','del','edit','sell','addm','addl','dell','delm','exp','disc','shr','cdir','lnr','lbr','selsh','sellb','adds','dels','addv','delv','addt','delt'].includes(a)&&!CAN)return;
   if(a==='view')retired=t.dataset.v==='old';
   else if(a==='col')newColor=t.dataset.c;
   else if(a==='sels'){selS=id;sel=null}
@@ -378,6 +380,7 @@ document.addEventListener('click',e=>{
   else if(a==='addv'){const h=S.shapes.find(x=>x.id===selSh);if(h){let bi=0,bl=-1;h.pts.forEach((q,i)=>{const w=h.pts[(i+1)%h.pts.length],l=Math.hypot(q[0]-w[0],q[1]-w[1]);if(l>bl){bl=l;bi=i}});const q=h.pts[bi],w=h.pts[(bi+1)%h.pts.length];h.pts.splice(bi+1,0,[+((q[0]+w[0])/2).toFixed(1),+((q[1]+w[1])/2).toFixed(1)]);save()}}
   else if(a==='lnr'){const l=LNS();if(l.id){delete l.col;save()}}
   else if(a==='lbr'){const l=LBS();if(l.id){delete l.col;save()}}
+  else if(a==='cdir'){const m=S.marks.find(x=>x.c===selS);if(m){if(t.dataset.d==='A')delete m.d;else m.d=t.dataset.d;save()}}
   else if(a==='shr'){const h=S.shapes.find(x=>x.id===selSh);if(h){delete h.col;delete h.op;save()}}
   else if(a==='delv'){const h=S.shapes.find(x=>x.id===selSh);if(h&&h.pts.length>3){h.pts.pop();save()}}
   else if(a==='addt'){const t=$('nt').value.trim().slice(0,24);if(t){const l={id:uid(),t,x:100,y:162};S.labels.push(l);selLb=l.id;selSh=null;selL=null;save()}}
